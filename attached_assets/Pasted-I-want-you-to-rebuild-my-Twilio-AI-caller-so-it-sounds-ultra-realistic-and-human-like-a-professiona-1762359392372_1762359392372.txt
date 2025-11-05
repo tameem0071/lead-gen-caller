@@ -1,0 +1,79 @@
+I want you to rebuild my Twilio AI caller so it sounds ultra-realistic and human, like a professional but friendly salesman.
+
+Goals:
+1. **Use ElevenLabs voice for realism**  
+   - Integrate ElevenLabs with Twilio (via ConversationRelay or the ElevenLabs API).  
+   - Use a professional male voice — something like “Adam,” “Michael,” or any realistic English male voice.  
+   - Set `ttsProvider="ElevenLabs"` in the Twilio XML or use the ElevenLabs API directly.  
+   - Tune parameters:
+     - model: flash_v2_5
+     - speed: 1.05
+     - stability: 0.85
+     - similarity: 0.9
+   - Add light pitch and rate variation so it doesn’t sound flat.
+   - Use `<break time="0.4s"/>` between sentences for breathing pauses.
+
+2. **Make it intelligent (GPT-4 brain)**  
+   - Integrate GPT-4 to generate responses in real time.  
+   - Temperature: 1.0 for natural variation.  
+   - Max tokens per response: 100–150.  
+   - Keep it short, friendly, and context-aware.  
+   - Use conversational logic — greet, qualify, handle objections, and close politely.
+
+3. **Add conversational structure**  
+   - Use `/voice/start` TwiML route to greet the user:  
+     “Hey, this is Alex from [Brand Name]. Just wanted to ask a quick question — you got a minute?”  
+   - Use `/voice/handle` to respond based on the caller’s speech.  
+     - If yes: ask a follow-up question about what they’re interested in.  
+     - If no: thank them and hang up.  
+   - Use `/voice/qualify` to wrap up the call politely.
+   - Keep the tone **friendly, confident, never pushy.**
+
+4. **SSML voice tuning**  
+   - Wrap all say() lines with SSML for natural rhythm:
+     ```
+     <speak>
+       <prosody rate="96%" pitch="+2%">Hey, this is Alex from <say-as interpret-as="organization">TestCo</say-as>. You got a minute?</prosody>
+     </speak>
+     ```
+   - Include small natural fillers like “you know” or “right?” every few sentences.
+
+5. **Optimize latency and flow**  
+   - Stream GPT-4 responses token-by-token to Twilio so speech starts mid-sentence (use `stream: true`).  
+   - Enable barge-in: if the user speaks while the AI is talking, Twilio stops playback and listens.  
+   - Use short messages (1–2 sentences max before waiting for user).
+
+6. **Improve Twilio setup**  
+   - Update `/twiml` route to connect via ConversationRelay using ElevenLabs provider.
+   - Ensure your Twilio number webhook points to `${PUBLIC_BASE_URL}/twiml`.  
+   - Add environment variables in Replit Secrets:
+     - `TWILIO_ACCOUNT_SID`
+     - `TWILIO_AUTH_TOKEN`
+     - `TWILIO_NUMBER`
+     - `ELEVENLABS_API_KEY`
+     - `OPENAI_API_KEY`
+     - `PUBLIC_BASE_URL` (your Replit URL)
+   - Test call with verified number `+971528301575`.
+
+7. **Voice personality (system prompt for GPT-4)**  
+You are “Alex,” a confident, friendly salesman for a modern company.
+You speak in a natural tone — relaxed, upbeat, and conversational.
+You never sound robotic or scripted.
+You talk like a real human: short sentences, small pauses, natural phrasing.
+You mirror the person’s mood. If they’re curious, you engage; if they’re busy, you thank them and end politely.
+
+markdown
+Copy code
+- Keep it authentic and adaptable to the caller’s tone.
+
+8. **Testing**  
+- Make a test call to +971528301575.  
+- Log both the Twilio webhook events and the GPT-4 responses.  
+- Fix any “Application Error” issues before production.
+
+Deliverables:
+- Updated `server/voice.ts` (or voice.js) with full conversational flow.
+- Updated `/twiml` route with ElevenLabs ConversationRelay.
+- Proper GPT-4 integration and streaming for real-time conversation.
+- Logs showing recognized speech and AI replies.
+- The AI must sound 100% natural and hold a 2-minute friendly conversation.

@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { insertLeadSchema, insertCallSessionSchema } from "@shared/schema";
 import { getTwilioClient, getTwilioFromPhoneNumber, generateTwiML } from "./twilio";
-import voiceRouter from "./voice";
+import voiceRouter, { handleConversationWebSocket } from "./voice";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register conversational voice routes
@@ -374,6 +375,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+
+  // Set up WebSocket server for ConversationRelay
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/voice/relay' 
+  });
+
+  wss.on('connection', (ws, req) => {
+    console.log('[WebSocket] New connection to /voice/relay');
+    handleConversationWebSocket(ws, req);
+  });
+
+  console.log('[Server] WebSocket server listening on /voice/relay');
 
   return httpServer;
 }
