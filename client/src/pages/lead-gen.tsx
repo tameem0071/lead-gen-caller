@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { CheckCircle, Phone } from "lucide-react";
+import { CheckCircle, Phone, AlertCircle, Clock } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,7 @@ type FormStep = "businessName" | "contactName" | "phoneNumber" | "productCategor
 
 export default function LeadGenPage() {
   const [step, setStep] = useState<FormStep>("businessName");
+  const [callResult, setCallResult] = useState<{status: string; error?: string} | null>(null);
   const { toast } = useToast();
 
   const form = useForm<InsertLead>({
@@ -32,7 +33,12 @@ export default function LeadGenPage() {
     mutationFn: async (data: InsertLead) => {
       return await apiRequest("POST", "/api/leads", data);
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
+      // Store call result for success screen
+      setCallResult({
+        status: response.callStatus || "success",
+        error: response.callError,
+      });
       setStep("success");
     },
     onError: (error: any) => {
@@ -81,26 +87,95 @@ export default function LeadGenPage() {
   };
 
   if (step === "success") {
+    const isSuccess = callResult?.status === "success";
+    const isRateLimited = callResult?.status === "rate_limited";
+    const isFailed = callResult?.status === "failed";
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="w-full max-w-md p-8 text-center space-y-6">
           <div className="flex justify-center">
-            <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-            </div>
+            {isSuccess && (
+              <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+            )}
+            {isRateLimited && (
+              <div className="h-16 w-16 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                <Clock className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+              </div>
+            )}
+            {isFailed && (
+              <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
+            )}
           </div>
+          
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold" data-testid="text-success-title">
-              We'll call you shortly!
-            </h1>
-            <p className="text-muted-foreground">
-              Thanks for your interest. Our system is placing a call to your number right now.
-            </p>
+            {isSuccess && (
+              <>
+                <h1 className="text-2xl font-semibold" data-testid="text-success-title">
+                  We'll call you shortly!
+                </h1>
+                <p className="text-muted-foreground">
+                  Thanks for your interest. Our system is placing a call to your number right now.
+                </p>
+              </>
+            )}
+            
+            {isRateLimited && (
+              <>
+                <h1 className="text-2xl font-semibold" data-testid="text-rate-limited-title">
+                  Lead Saved Successfully
+                </h1>
+                <p className="text-muted-foreground">
+                  Your information has been saved, but we recently called this number.
+                </p>
+                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
+                  {callResult?.error || "Please wait 60 seconds before calling this number again."}
+                </div>
+              </>
+            )}
+            
+            {isFailed && (
+              <>
+                <h1 className="text-2xl font-semibold" data-testid="text-call-failed-title">
+                  Lead Saved, Call Failed
+                </h1>
+                <p className="text-muted-foreground">
+                  Your information has been saved successfully, but we couldn't place the call.
+                </p>
+                <div className="mt-4 p-4 bg-destructive/10 rounded-md text-sm">
+                  {callResult?.error || "Please contact support or try again later."}
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground pt-4">
-            <Phone className="h-4 w-4 animate-pulse" />
-            <span>Call initiated</span>
-          </div>
+          
+          {isSuccess && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground pt-4">
+              <Phone className="h-4 w-4 animate-pulse" />
+              <span>Call initiated</span>
+            </div>
+          )}
+          
+          {(isRateLimited || isFailed) && (
+            <div className="pt-4">
+              <Button 
+                onClick={() => {
+                  setStep("businessName");
+                  setCallResult(null);
+                  form.reset();
+                }}
+                variant="outline"
+                className="w-full"
+                data-testid="button-start-over"
+              >
+                Start Over
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     );

@@ -11,8 +11,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertLeadSchema.parse(req.body);
       const lead = await storage.createLead(validatedData);
       
+      let callStatus: "success" | "rate_limited" | "failed" = "success";
+      let callError: string | undefined;
+
       // Auto-trigger call workflow
       try {
+        // Rate limiting check - prevent duplicate calls within 1 minute
+        const recentCall = await storage.getRecentCallByPhone(lead.phoneNumber, 1);
+        if (recentCall) {
+          console.log(`Rate limit: Skipping auto-call for ${lead.phoneNumber} (called recently)`);
+          callStatus = "rate_limited";
+          callError = "Please wait 60 seconds before calling this number again";
+          return res.json({ 
+            ...lead, 
+            callStatus,
+            callError 
+          });
+        }
+
         // Create call session
         const callSession = await storage.createCallSession({
           leadId: lead.id,
@@ -45,12 +61,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         console.log(`Call initiated for lead ${lead.id}, call SID: ${call.sid}`);
-      } catch (callError: any) {
-        console.error("Failed to auto-trigger call:", callError);
-        // Don't fail the lead creation if call fails
+      } catch (twilioError: any) {
+        console.error("Failed to auto-trigger call:", twilioError);
+        
+        callStatus = "failed";
+        
+        // Update call session to FAILED state if it was created
+        const sessions = await storage.getAllCallSessions();
+        const failedSession = sessions.find(s => s.leadId === lead.id && !s.twilioSid);
+        if (failedSession) {
+          await storage.updateCallSession(failedSession.id, { state: "FAILED" });
+        }
+        
+        // Provide trial-friendly error messages
+        if (twilioError.code === 21608) {
+          console.error("Twilio trial mode: Number not verified");
+          callError = "Trial mode: This number is not verified in your Twilio account. Please verify the number to receive calls.";
+        } else {
+          callError = twilioError.message || "Failed to place call. Please try again or contact support.";
+        }
       }
 
-      res.json(lead);
+      res.json({ 
+        ...lead, 
+        callStatus,
+        callError 
+      });
     } catch (error: any) {
       console.error("Lead creation error:", error);
       if (error.name === "ZodError") {

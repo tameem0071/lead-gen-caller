@@ -40,7 +40,8 @@ export default function AdminPage() {
       const lead = leads.find((l) => l.id === leadId);
       if (!lead) throw new Error("Lead not found");
 
-      const callSession = await apiRequest("POST", "/api/call/start", {
+      // Create call session
+      const callSession: any = await apiRequest("POST", "/api/call/start", {
         leadId: lead.id,
         phoneNumber: lead.phoneNumber,
         businessName: lead.businessName,
@@ -48,8 +49,13 @@ export default function AdminPage() {
         brandName: lead.brandName,
       });
 
-      await apiRequest("POST", `/api/call/${callSession.id}/dial`, {});
-      return callSession;
+      if (!callSession || !callSession.id) {
+        throw new Error("Failed to create call session");
+      }
+
+      // Dial the call
+      const dialResult = await apiRequest("POST", `/api/call/${callSession.id}/dial`, {});
+      return dialResult;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
@@ -66,6 +72,7 @@ export default function AdminPage() {
         description: error.message || "Failed to place call. Please try again.",
         variant: "destructive",
       });
+      setShowCallDialog(false);
     },
   });
 
