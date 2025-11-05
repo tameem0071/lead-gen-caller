@@ -121,25 +121,28 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
   console.log('[WebSocket] New ConversationRelay connection');
 
   let callSid: string = '';
-  let streamSid: string = '';
   let state: ConversationState | undefined;
+
+  const url = req.url || '';
+  const urlParams = new URLSearchParams(url.split('?')[1] || '');
+  const businessName = urlParams.get('businessName') || 'your business';
+  const productCategory = urlParams.get('productCategory') || 'our services';
+  const brandName = urlParams.get('brandName') || 'the company';
+
+  console.log('[WebSocket] Params:', { businessName, productCategory, brandName });
 
   ws.on('message', async (message: any) => {
     try {
       const data = JSON.parse(message.toString());
-      console.log('[WS Message]', data.type || data.event);
+      const eventType = data.event || data.type;
+      console.log('[WS Event]', eventType, data);
 
-      if (data.type === 'setup') {
+      if (eventType === 'setup') {
         callSid = data.callSid;
-        streamSid = data.streamSid;
-        
-        const businessName = req.query?.businessName || 'your business';
-        const productCategory = req.query?.productCategory || 'our services';
-        const brandName = req.query?.brandName || 'the company';
 
         state = {
           callSid,
-          streamSid,
+          streamSid: '',
           businessName,
           productCategory,
           brandName,
@@ -158,16 +161,27 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
 
         ws.send(
           JSON.stringify({
-            type: 'text',
             token: greeting,
+            last: true,
           })
         );
 
         console.log(`[Setup] CallSid: ${callSid}, Business: ${businessName}`);
-      } else if (data.type === 'prompt' && data.voicePrompt) {
+      } else if (eventType === 'prompt' && data.voicePrompt) {
         if (!state) {
-          console.warn('[Prompt] No state found');
-          return;
+          console.warn('[Prompt] No state found, creating new state');
+          callSid = callSid || 'unknown';
+          state = {
+            callSid,
+            streamSid: '',
+            businessName,
+            productCategory,
+            brandName,
+            messages: [],
+            turnCount: 0,
+            ws,
+          };
+          conversations.set(callSid, state);
         }
 
         const userSpeech = data.voicePrompt;
@@ -180,23 +194,31 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
 
         ws.send(
           JSON.stringify({
-            type: 'text',
             token: message,
+            last: true,
           })
         );
 
+        console.log(`[AI Response Sent] "${message}"`);
+
         if (shouldEndCall) {
           setTimeout(() => {
-            ws.send(JSON.stringify({ type: 'hangup' }));
+            ws.close();
           }, 2000);
         }
-      } else if (data.type === 'interrupt') {
+      } else if (eventType === 'interrupt') {
         console.log('[Interrupt] User interrupted AI');
-      } else if (data.type === 'stop') {
+      } else if (eventType === 'dtmf') {
+        console.log('[DTMF] Digit pressed:', data.digit);
+      } else if (eventType === 'error') {
+        console.error('[Twilio Error]', data.message);
+      } else if (eventType === 'stop') {
         console.log('[Stop] Conversation ended');
         if (callSid) {
           conversations.delete(callSid);
         }
+      } else {
+        console.log('[Unknown Event]', eventType, data);
       }
     } catch (error) {
       console.error('[WS Error]', error);
