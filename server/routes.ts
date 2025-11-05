@@ -60,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const call = await twilioClient.calls.create({
           to: lead.phoneNumber,
           from: fromNumber,
-          url: `${publicUrl}/voice/twiml?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
+          url: `${publicUrl}/voice/twiml-test?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
           machineDetection: 'Enable',
           method: 'POST',
         });

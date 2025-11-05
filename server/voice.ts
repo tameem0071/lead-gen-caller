@@ -272,7 +272,25 @@ const handleTwiML = (req: Request, res: Response) => {
   res.type('text/xml').send(twiml);
 };
 
+// Simple test endpoint - no WebSocket needed
+const handleSimpleTwiML = (req: Request, res: Response) => {
+  const businessName = req.query.businessName as string || 'Test Business';
+  const productCategory = req.query.productCategory as string || 'Test Services';
+  const brandName = req.query.brandName as string || 'TestCo';
+
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Hello, this is a test call from ${brandName.replace(/[<>&'"]/g, '')}. We are calling about ${productCategory.replace(/[<>&'"]/g, '')}. If you can hear this message, Twilio is working correctly. Goodbye.</Say>
+  <Hangup/>
+</Response>`;
+
+  console.log(`[Simple TwiML Test] Basic call without WebSocket for ${brandName}`);
+  res.type('text/xml').send(twiml);
+};
+
 router.get('/twiml', handleTwiML);
 router.post('/twiml', handleTwiML);
+router.get('/twiml-test', handleSimpleTwiML);
+router.post('/twiml-test', handleSimpleTwiML);
 
 export default router;
