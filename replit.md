@@ -67,6 +67,18 @@ Preferred communication style: Simple, everyday language.
 - JSON body parsing with raw buffer access (for potential webhook signature verification)
 - Request/response logging with duration tracking
 - Automatic truncation of long log lines (80 char max)
+- Comprehensive startup logging for deployment diagnostics
+- Health check endpoints at `/health` and `/` for platform monitoring
+
+**Deployment Configuration:**
+- Server binds to `0.0.0.0:5000` with port reuse enabled
+- Health check endpoint at `/health` returns status, timestamp, and uptime
+- Comprehensive error handling in async initialization with process exit on failure
+- Detailed startup logging for diagnosing deployment issues
+- **Recommended Deployment Type:** Reserved VM (persistent WebSocket connections for Twilio)
+  - Autoscale incurs continuous billing for open WebSocket connections
+  - Reserved VM provides dedicated resources and predictable costs
+  - Ideal for long-running Twilio Media Streams connections
 
 ### Data Schema (Drizzle ORM)
 

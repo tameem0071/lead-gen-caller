@@ -2,6 +2,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+console.log('[Startup] Initializing server...');
+console.log('[Startup] Environment:', process.env.NODE_ENV || 'production');
+console.log('[Startup] Port:', process.env.PORT || '5000');
+
 const app = express();
 
 declare module 'http' {
@@ -9,12 +13,33 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+console.log('[Startup] Configuring middleware...');
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
   }
 }));
 app.use(express.urlencoded({ extended: true })); // Required for Twilio webhooks
+
+// Health check endpoint for deployment platforms
+app.get('/health', (_req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Root endpoint for basic health check
+app.get('/', (_req, res, next) => {
+  // Only respond if not in development (Vite handles / in dev)
+  if (app.get("env") !== "development") {
+    res.status(200).send('Server is running');
+  } else {
+    next();
+  }
+});
 
 // CORS support for testing from Replit console
 app.use((req, res, next) => {
@@ -58,35 +83,61 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    console.log('[Startup] Registering routes and WebSocket servers...');
+    const server = await registerRoutes(app);
+    console.log('[Startup] Routes registered successfully');
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
-  });
+      res.status(status).json({ message });
+      throw err;
+    });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (app.get("env") === "development") {
+      console.log('[Startup] Setting up Vite development server...');
+      await setupVite(app, server);
+      console.log('[Startup] Vite setup complete');
+    } else {
+      console.log('[Startup] Serving static assets...');
+      serveStatic(app);
+      console.log('[Startup] Static assets configured');
+    }
+
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = parseInt(process.env.PORT || '5000', 10);
+    console.log(`[Startup] Starting server on host 0.0.0.0:${port}...`);
+    
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      console.log(`[Startup] ✅ Server successfully started on port ${port}`);
+      console.log(`[Startup] Health check available at http://0.0.0.0:${port}/health`);
+      log(`serving on port ${port}`);
+    });
+
+    // Handle server errors
+    server.on('error', (error: any) => {
+      console.error('[Startup] ❌ Server error:', error);
+      if (error.code === 'EADDRINUSE') {
+        console.error(`[Startup] Port ${port} is already in use`);
+      }
+      process.exit(1);
+    });
+
+  } catch (error) {
+    console.error('[Startup] ❌ Failed to initialize server:', error);
+    console.error('[Startup] Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
 })();
