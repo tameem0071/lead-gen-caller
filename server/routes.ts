@@ -60,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const call = await twilioClient.calls.create({
           to: lead.phoneNumber,
           from: fromNumber,
-          url: `${publicUrl}/voice/twiml-test?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
+          url: `${publicUrl}/voice/twiml?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
           machineDetection: 'Enable',
           method: 'POST',
         });
@@ -387,9 +387,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   wss.on('connection', (ws, req) => {
     console.log('[WebSocket] ✅ New connection to /voice/relay');
+    console.log('[WebSocket] Remote Address:', req.socket.remoteAddress);
     console.log('[WebSocket] Headers:', JSON.stringify(req.headers, null, 2));
     console.log('[WebSocket] URL:', req.url);
     handleConversationWebSocket(ws, req);
+  });
+  
+  wss.on('listening', () => {
+    console.log('[WebSocket Server] ✅ Listening and ready for connections');
   });
 
   wss.on('error', (error) => {
