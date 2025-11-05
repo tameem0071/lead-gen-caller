@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const call = await twilioClient.calls.create({
           to: lead.phoneNumber,
           from: fromNumber,
-          url: `${publicUrl}/voice/start?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
+          url: `${publicUrl}/voice/twiml?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
           machineDetection: 'Enable',
           method: 'POST',
         });
@@ -185,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const call = await twilioClient.calls.create({
         to: session.phoneNumber,
         from: fromNumber,
-        url: `${publicUrl}/voice/start?businessName=${encodeURIComponent(session.businessName)}&productCategory=${encodeURIComponent(session.productCategory)}&brandName=${encodeURIComponent(session.brandName)}`,
+        url: `${publicUrl}/voice/twiml?businessName=${encodeURIComponent(session.businessName)}&productCategory=${encodeURIComponent(session.productCategory)}&brandName=${encodeURIComponent(session.brandName)}`,
         machineDetection: 'Enable',
         method: 'POST',
       });
@@ -318,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
-      const webhookUrl = `${publicUrl}/voice/start?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
+      const webhookUrl = `${publicUrl}/voice/twiml?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
       
       console.log(`[Simulate] Webhook URL: ${webhookUrl}`);
       console.log(`[Simulate] From: ${fromNumber}, To: ${phoneNumber}`);

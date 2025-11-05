@@ -1,359 +1,416 @@
-# Ultra-Realistic AI Voice Caller
+# ElevenLabs Ultra-Realistic Voice Integration
 
-This application features an **ultra-realistic AI-powered conversational caller** that uses OpenAI's GPT-4o and Amazon Polly's highest-quality Neural voice to have natural, engaging phone conversations with leads.
+This application now features **ElevenLabs voices via Twilio ConversationRelay** - providing the most realistic, human-like AI phone conversations available today.
 
-## 🎙️ Voice Quality - Professional Male Voice
+## 🎙️ Voice Quality - ElevenLabs Professional Voice
 
-**Voice:** Amazon Polly Matthew (Neural tier)
-- **Quality Level:** Neural TTS (highest quality available on Twilio)
+**Voice:** ElevenLabs "Adam" (`pNInz6obpgDQGcFmaJgB`)
+- **Quality Level:** ElevenLabs Flash 2.5 (ultra-realistic neural voice)
 - **Gender:** Professional male voice
-- **Sound:** Natural, warm, conversational
-- **Technology:** Amazon Polly's neural engine with deep learning
+- **Sound:** Indistinguishable from a real human - warm, natural, conversational
+- **Latency:** 75ms model latency for real-time conversations
+- **Technology:** State-of-the-art generative AI voice synthesis
 
-**SSML Enhancements for Ultra-Realistic Speech:**
-- Dynamic rate adjustments (98-102% variation)
-- Subtle pitch lift (+3% for professional tone)
-- Strategic 400ms pauses between sentences
-- Natural pacing and rhythm
-- Human-like speech patterns
+**Key Advantages Over Previous System:**
+- ✅ Sounds completely human - not robotic at all
+- ✅ Natural emotional expressiveness
+- ✅ Perfect pronunciation and pacing
+- ✅ No SSML tuning required - just send plain text
+- ✅ 1000+ voices available to choose from
+- ✅ Multilingual support with accent variety
 
-## 🤖 AI Intelligence - No More Scripts
+## 🤖 AI Intelligence - GPT-4 Brain
 
 **Model:** GPT-4o (OpenAI's most capable model)
-- Real language understanding
-- Creative, engaging responses (temperature 0.9)
-- Longer, more detailed answers (up to 250 tokens)
-- Remembers full conversation context
+- Temperature: 1.0 (maximum natural variation)
+- Max tokens: 100 (short, phone-appropriate responses)
+- Real-time conversation understanding
+- Context-aware responses
+- No artificial conversation limits
 
-**Conversation Style:**
-- ✅ Asks follow-up questions naturally
-- ✅ Shows genuine interest and listens
-- ✅ Builds rapport and relationships
-- ✅ Answers questions directly with specifics
-- ✅ Varies responses - never sounds robotic
-- ✅ No artificial time limits - conversations flow naturally
+**AI Personality: "Alex"**
+- Casual, friendly, professional
+- Brief responses (1-2 sentences)
+- Uses natural filler words ("you know", "um", "like")
+- Mirrors caller's energy
+- Never sounds scripted or uses placeholder text
 
-## Key Improvements from Basic System
+## Architecture
 
-| Feature | Old System | New Ultra-Realistic System |
-|---------|-----------|---------------------------|
-| **Voice** | Female standard voice | Professional male Neural voice |
-| **Speech Quality** | Basic TTS | SSML prosody with natural pacing |
-| **AI Model** | gpt-4o-mini | gpt-4o (highest quality) |
-| **Response Style** | Short, scripted | Engaging, conversational |
-| **Turn Limit** | 8 turns max | Unlimited - natural endings |
-| **Questions** | Couldn't answer | Answers directly with details |
-| **Engagement** | Robotic | Builds rapport, asks follow-ups |
+```
+Caller → Twilio Voice → ConversationRelay → WebSocket Server
+                              ↓
+                        Speech-to-Text
+                              ↓
+                         GPT-4 Processing
+                              ↓
+                        Text-to-Speech (ElevenLabs)
+                              ↓
+                    Ultra-Realistic Voice → Caller
+```
+
+**What ConversationRelay Handles Automatically:**
+- Speech-to-Text (STT) transcription
+- Text-to-Speech (TTS) with ElevenLabs
+- Session management
+- Barge-in detection (caller can interrupt)
+- Low-latency media streaming
+
+**What Your Server Handles:**
+- GPT-4 conversation logic
+- Business context and rules
+- Call flow management
+- Response generation
 
 ## How It Works
 
-### Ultra-Realistic Voice Pipeline
+### 1. Call Initiation
 
-```
-User speaks → Twilio transcribes
-    ↓
-GPT-4o generates intelligent response
-    ↓
-SSML prosody applied (rate, pitch, breaks)
-    ↓
-Amazon Polly Matthew (Neural) speaks
-    ↓
-Natural-sounding professional male voice
-```
-
-### SSML Prosody Magic
-
-Every response is enhanced with SSML:
-
-```xml
-<speak>
-  <prosody rate="102%" pitch="+3%">
-    Hi! This is TechCo calling about Cloud Services.
-  </prosody>
-  <break time="400ms"/>
-  <prosody rate="98%" pitch="+3%">
-    We received your inquiry and wanted to reach out personally.
-  </prosody>
-  <break time="400ms"/>
-  <prosody rate="98%" pitch="+3%">
-    Do you have a quick moment to chat?
-  </prosody>
-</speak>
-```
-
-**Result:** Natural pauses, varied pacing, professional tone
-
-### Conversation Example
-
-**OLD SYSTEM:**
-```
-Caller: "How much does your service cost?"
-Bot: "I didn't quite catch that. Are you interested in our services?"
-❌ Doesn't understand
-❌ Sounds robotic
-❌ Can't answer questions
-```
-
-**NEW ULTRA-REALISTIC SYSTEM:**
-```
-Caller: "How much does your service cost?"
-AI: "Great question! Our pricing typically ranges from $500 to $2,000 
-     per month depending on your team size and needs. What size is 
-     your organization?"
-
-Caller: "We're about 50 people"
-AI: "Perfect! For a 50-person team, you'd likely be looking at around 
-     $1,200 per month. That includes all features and support. Would 
-     you like me to send over a detailed breakdown via email?"
-     
-✅ Understands perfectly
-✅ Gives real numbers
-✅ Sounds human
-✅ Asks relevant follow-ups
-```
-
-## AI System Prompt
-
-The AI is instructed to be:
-
-**Conversational and Warm:**
-- Sound like a real person, not a robot
-- Use natural speech with contractions
-- Show genuine interest in their business
-
-**Engaging:**
-- Ask open-ended questions
-- Build on previous answers
-- Share relevant insights
-- Keep the conversation flowing
-
-**Helpful:**
-- Answer questions directly with specifics
-- Provide real numbers and details
-- Be informative, not pushy
-
-**No Rush:**
-- Let conversations develop naturally
-- No artificial turn limits
-- End only when truly appropriate
-- Focus on quality engagement
-
-## Environment Setup
-
-All credentials managed through Replit Connectors:
-
-**Twilio:**
-- Account SID, Auth Token, Phone Number
-
-**OpenAI:**
-- API Key (via Replit AI Integrations)
-
-**Domain:**
-- Automatically configured
-
-✅ No manual setup needed!
-
-## Testing Your Ultra-Realistic Caller
-
-### Quick Test
-
+Test a call:
 ```javascript
-fetch('/api/simulate', {
+fetch('https://your-repl.replit.dev/api/simulate', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    phoneNumber: '+15551234567',  // YOUR verified number
-    businessName: 'Acme Corp',
-    productCategory: 'Cloud Services'
+    phoneNumber: '+971528301575',  // Your verified number
+    businessName: 'Test Business',
+    productCategory: 'Software Services',
+    brandName: 'TechCo'
   })
-})
+}).then(r => r.json()).then(console.log)
+```
+
+### 2. Twilio Connects to ConversationRelay
+
+TwiML response (`/voice/twiml`):
+```xml
+<Response>
+  <Connect>
+    <ConversationRelay 
+      url="wss://your-domain/voice/relay?businessName=..."
+      ttsProvider="ElevenLabs"
+      voice="pNInz6obpgDQGcFmaJgB"
+      dtmfDetection="true"
+    />
+  </Connect>
+</Response>
+```
+
+### 3. WebSocket Conversation
+
+The WebSocket handler receives/sends messages:
+
+**Setup (when call connects):**
+```json
+{
+  "type": "setup",
+  "callSid": "CA...",
+  "streamSid": "MZ..."
+}
+```
+
+**AI sends greeting:**
+```json
+{
+  "type": "text",
+  "token": "Hey! This is Alex from TechCo. We got your info about Software Services. You got a minute?"
+}
+```
+
+**User speaks:**
+```json
+{
+  "type": "prompt",
+  "voicePrompt": "Who is this?"
+}
+```
+
+**AI responds:**
+```json
+{
+  "type": "text",
+  "token": "Oh hey! Yeah I'm with TechCo. We help businesses with software stuff. Got a sec?"
+}
+```
+
+### 4. ElevenLabs Speaks
+
+ConversationRelay automatically converts the AI's text into ultra-realistic speech using ElevenLabs and plays it to the caller.
+
+## Conversation Example
+
+**Greeting:**
+```
+AI: "Hey! This is Alex from TestCo. We got your info about cloud services. You got a minute?"
+```
+
+**User asks question:**
+```
+User: "Who is this?"
+AI: "Oh hey! Yeah I'm with TestCo. We help businesses with cloud stuff. Got a sec?"
+```
+
+**User asks about pricing:**
+```
+User: "How much does it cost?"
+AI: "Yeah so most clients end up around 500-1000 a month depending on what they need, you know?"
+```
+
+**User is busy:**
+```
+User: "I'm busy right now"
+AI: "[END_CALL] No problem at all! I'll shoot you an email instead. Take care!"
+```
+
+## Why This Sounds Ultra-Realistic
+
+### 1. **ElevenLabs Voice Technology**
+- Generative AI voice synthesis
+- Emotional expressiveness
+- Perfect natural prosody
+- Human-like pauses and rhythm
+
+### 2. **GPT-4 Intelligence**
+- Understands context and nuance
+- Natural conversation flow
+- Adaptive to caller's style
+- Never sounds scripted
+
+### 3. **No SSML Required**
+- Just send plain text
+- ElevenLabs handles all natural speech
+- No complex tuning needed
+
+### 4. **Real-Time Feel**
+- 75ms model latency
+- Barge-in support
+- Natural interruptions
+- Conversational pacing
+
+## Changing the Voice
+
+### Available Voice Options
+
+To use a different voice, edit `server/voice.ts` and change the voice ID:
+
+```typescript
+<ConversationRelay 
+  url="${wsUrl}"
+  ttsProvider="ElevenLabs"
+  voice="pNInz6obpgDQGcFmaJgB"  // ← Change this
+  dtmfDetection="true"
+/>
+```
+
+**Popular ElevenLabs Voices:**
+- `pNInz6obpgDQGcFmaJgB` - Adam (current - professional male, US)
+- `NYC9WEgkq1u4jiqBseQ9` - Amelia (British female, expressive)
+- `XrExE9yKIg1WjnnlVkGX` - Another Adam variant
+- Browse 1000+ voices: [Twilio Voice Configuration](https://www.twilio.com/docs/voice/conversationrelay/voice-configuration)
+
+### Advanced Voice Tuning
+
+Customize voice parameters:
+
+Format: `VOICE_ID-MODEL-SPEED_STABILITY_SIMILARITY`
+
+Example:
+```typescript
+voice="pNInz6obpgDQGcFmaJgB-flash_v2_5-1.05_0.85_0.9"
+```
+
+**Parameters:**
+- **Speed:** 0.5-2.0 (default 1.0, try 1.05 for slight quickness)
+- **Stability:** 0.0-1.0 (default 0.6, try 0.85 for consistent tone)
+- **Similarity:** 0.0-1.0 (default 0.8, try 0.9 for maximum accuracy)
+
+## Customizing the AI Personality
+
+Edit `SYSTEM_PROMPT` in `server/voice.ts`:
+
+```typescript
+const SYSTEM_PROMPT = `You're Alex, calling on behalf of a company...
+
+CRITICAL RULES:
+1. Keep it SHORT - 1-2 sentences max per response
+2. Sound NATURAL - use contractions, casual language
+3. NO PLACEHOLDERS - Never say [Your Name] or [Company]
+4. Be CONVERSATIONAL - like chatting with someone
+5. MIRROR their energy - busy? Be brief. Chatty? Engage
+
+...
+`;
+```
+
+**Current Personality:**
+- Friendly, professional but casual
+- Brief responses (phone-appropriate)
+- Uses filler words sparingly ("you know", "like")
+- Adapts to caller's mood
+- Never sounds robotic or scripted
+
+## API Endpoints
+
+### POST /voice/twiml
+Returns TwiML that connects to ConversationRelay with ElevenLabs
+
+**Query Parameters:**
+- `businessName` - Name of the business being called
+- `productCategory` - What product/service you're calling about
+- `brandName` - Your company name
+
+**Returns:** TwiML XML with ConversationRelay configuration
+
+### WebSocket /voice/relay
+Real-time conversation handling
+
+**Message Types:**
+- `setup` - Initialize conversation state
+- `prompt` - User speech transcription
+- `text` - AI response to speak
+- `interrupt` - User interrupted AI
+- `stop` - Conversation ended
+
+## Testing
+
+### Monitor Logs
+
+Watch for:
+```bash
+[WebSocket] New connection to /voice/relay
+[Setup] CallSid: CA..., Business: Test Business
+[User Speech] "Who is this?"
+[AI] Turn 1: "Oh hey! Yeah I'm with TestCo..." (end: false)
 ```
 
 ### What to Test
 
 **Voice Quality:**
-- Listen for natural male voice
-- Notice pauses between sentences
-- Hear varied pacing (not monotone)
-- Professional, warm tone
+- Does it sound like a real person?
+- Is the tone warm and professional?
+- Are pauses natural?
+- Is pronunciation perfect?
 
 **AI Intelligence:**
 - Ask: "How much does it cost?"
-- Ask: "What makes you different?"
-- Ask: "Can you tell me more about X?"
-- Say: "I'm not sure, what can you tell me?"
+- Ask: "What do you do?"
+- Say: "I'm busy"
+- Ask: "Can you call back later?"
 
-The AI should handle ALL questions intelligently!
+The AI should handle everything naturally!
 
 **Conversation Flow:**
-- The AI will ask follow-up questions
-- Build on your previous answers
-- Show it's listening and engaged
-- Not rush to end the call
-
-## Advanced Configuration
-
-### Adjust Prosody
-
-Edit `addSSMLProsody()` in `server/voice.ts`:
-
-```typescript
-const rate = i === 0 ? '102%' : '98%';  // Speed variation
-const pitch = '+3%';  // Pitch adjustment
-```
-
-**Recommendations:**
-- Rate: 95-110% (subtle is better)
-- Pitch: +2% to +5% for professional male
-- Breaks: 300-500ms between sentences
-
-### Change AI Personality
-
-Edit `SYSTEM_PROMPT` in `server/voice.ts`:
-
-```typescript
-const SYSTEM_PROMPT = `You are a [YOUR ROLE].
-
-CONVERSATION STYLE:
-- [Your style preferences]
-- [Your tone]
-
-ENGAGEMENT TECHNIQUES:
-- [Your approach]
-...
-`;
-```
-
-### Adjust Response Length
-
-```typescript
-max_tokens: 250,  // Increase for longer responses
-```
-
-### Change Voice
-
-Other high-quality male voices:
-```typescript
-const voice = 'Polly.Matthew';  // Current (recommended)
-// const voice = 'Polly.Justin';  // Young male
-// const voice = 'Polly.Joey';    // Alternative male
-```
-
-## API Endpoints
-
-### POST /voice/start
-Initial AI greeting when call connects
-
-**Returns:** TwiML with SSML-enhanced greeting
-
-### POST /voice/handle
-Ongoing AI conversation handler
-
-**Process:**
-1. Receive caller's speech
-2. Send to GPT-4o with full context
-3. Generate intelligent response
-4. Apply SSML prosody
-5. Return TwiML with enhanced voice
-
-## Voice Quality Breakdown
-
-**Amazon Polly Matthew (Neural):**
-- ✅ Deep learning-based synthesis
-- ✅ Natural prosody and intonation
-- ✅ Contextual pronunciation
-- ✅ Emotional warmth
-- ✅ Professional business tone
-
-**SSML Enhancements:**
-- ✅ Rate variations prevent monotone
-- ✅ Pitch lift adds energy
-- ✅ Strategic breaks mimic human pauses
-- ✅ Natural sentence flow
-- ✅ Professional pacing
-
-**GPT-4o Integration:**
-- ✅ Understands context and nuance
-- ✅ Generates varied, natural responses
-- ✅ Remembers conversation history
-- ✅ Adapts to caller's style
-- ✅ Shows genuine engagement
+- AI should ask follow-ups
+- Build on previous answers
+- Mirror your energy
+- End gracefully when appropriate
 
 ## Troubleshooting
 
+### No audio / silence on call
+- Check WebSocket logs for connection
+- Verify voice ID is correct
+- Ensure GPT-4 is responding (look for `[AI]` logs)
+- Check Twilio debugger for errors
+
 ### Voice sounds robotic
-- **Unlikely** - Neural voice + SSML should sound very natural
-- **Check**: Verify SSML is working in logs
-- **Adjust**: Increase rate/pitch variations
+- **This shouldn't happen with ElevenLabs!**
+- Verify `ttsProvider="ElevenLabs"` is set
+- Check voice ID is valid ElevenLabs voice
+- Review Twilio ConversationRelay status
 
-### AI responses too long
-- **Solution**: Reduce `max_tokens` (currently 250)
-- **Or**: Update system prompt to emphasize brevity
+### AI gives bad responses
+- Review `SYSTEM_PROMPT` in `server/voice.ts`
+- Adjust temperature (currently 1.0)
+- Modify max_tokens if responses cut off
+- Check GPT-4 API status
 
-### AI responses too short
-- **Solution**: Increase `max_tokens` 
-- **Or**: Update prompt to encourage detail
+### Call doesn't connect
+- Phone number must be verified (Twilio trial mode)
+- Check `/voice/twiml` endpoint is accessible
+- Verify WebSocket endpoint is reachable
+- Review Twilio call debugger
 
-### Conversations end too quickly
-- **Already fixed** - No turn limit
-- **Check**: System prompt has correct ending instructions
+### WebSocket connection fails
+- Ensure server supports WebSocket upgrades
+- Verify firewall/proxy allows WebSocket
+- Check REPLIT_DEV_DOMAIN is set correctly
+- Test WebSocket endpoint separately
 
-### Voice doesn't sound professional enough
-- **Current**: Polly.Matthew is already professional
-- **Try**: Adjust pitch (+2% to +5%)
-- **Or**: Modify SSML rate (98-102%)
+## Environment Variables
+
+All managed automatically by Replit:
+
+**OpenAI Integration:**
+- `AI_INTEGRATIONS_OPENAI_API_KEY`
+- `AI_INTEGRATIONS_OPENAI_BASE_URL`
+
+**Twilio Integration:**
+- Account SID, Auth Token, Phone Number
+- Managed via Replit Connector
+
+**Domain:**
+- `REPLIT_DEV_DOMAIN` - Auto-configured
+
+✅ No manual setup needed!
 
 ## Performance & Costs
 
-**Voice Quality:** Neural tier ($0.0032/100 chars)
-- Higher quality than Standard
-- Same price as basic Neural
-- SSML adds no extra cost
+**ElevenLabs TTS:**
+- Included in Twilio ConversationRelay pricing
+- Ultra-high quality voice
+- 75ms latency
 
-**AI Model:** GPT-4o via Replit AI Integrations
-- Charged to Replit credits
-- More expensive than gpt-4o-mini
-- Worth it for quality conversations
+**GPT-4o:**
+- Charged via Replit AI credits
+- ~100 tokens per response
+- Temperature 1.0 for natural variation
 
-**Typical Call:**
-- 5-10 minute conversation
-- ~3,000 tokens (GPT-4o)
-- ~500 characters (voice synthesis)
+**Typical 5-Minute Call:**
+- ~10-15 conversational turns
+- ~1,000-1,500 GPT-4o tokens
 - Very reasonable cost for quality
 
-## Why This Sounds Ultra-Realistic
+## Advantages Over Amazon Polly System
 
-1. **Neural Voice Technology**
-   - Deep learning synthesis
-   - Natural prosody
-   - Emotional warmth
+| Feature | Old (Polly) | New (ElevenLabs) |
+|---------|-------------|------------------|
+| **Voice Quality** | Neural TTS | Ultra-realistic generative AI |
+| **Sound** | Somewhat robotic | Completely human |
+| **Setup** | Complex SSML tuning | Just send plain text |
+| **Voices** | Limited selection | 1000+ voices |
+| **Expressiveness** | Limited | Emotional & natural |
+| **Latency** | Good | Excellent (75ms) |
+| **Ease** | Required prosody tweaking | Works out of the box |
 
-2. **SSML Prosody**
-   - Varied pacing (not monotone)
-   - Strategic pauses
-   - Professional tone
+## Production Deployment
 
-3. **GPT-4o Intelligence**
-   - Real understanding
-   - Natural conversation flow
-   - Contextual responses
+When ready for production:
 
-4. **No Scripts**
-   - Adapts to each caller
-   - Never sounds canned
-   - Genuine engagement
+1. **Upgrade Twilio** - Remove trial number restrictions
+2. **Add Error Handling** - Retry logic for API failures
+3. **Monitor Costs** - Track ElevenLabs/GPT-4 usage
+4. **Scale WebSocket** - Load balancing for high volume
+5. **Add Analytics** - Conversation success metrics
+6. **Test Extensively** - Various scenarios and questions
 
-5. **Unlimited Conversation**
-   - No rush to end
-   - Natural flow
-   - Time to build rapport
+## Resources
 
-## Next Steps
+- [Twilio ConversationRelay Docs](https://www.twilio.com/docs/voice/conversationrelay)
+- [ElevenLabs Voice Library](https://www.twilio.com/docs/voice/conversationrelay/voice-configuration)
+- [ConversationRelay Best Practices](https://www.twilio.com/docs/voice/conversationrelay/best-practices)
+- [ElevenLabs + Twilio Tutorial](https://www.twilio.com/en-us/blog/integrate-elevenlabs-voices-with-twilios-conversationrelay)
 
-1. **Test the voice** - Call yourself and listen
-2. **Adjust prosody** - Fine-tune rate/pitch if needed
-3. **Refine AI prompt** - Customize personality
-4. **Monitor conversations** - Check logs for quality
-5. **Deploy to production** - Use with real leads
+---
 
-Your caller now sounds like a **real professional businessperson** making a genuine call. No more robotic scripts!
+## Summary
+
+Your AI caller now sounds like a **real professional human** making a genuine phone call:
+
+✅ **Ultra-realistic voice** - ElevenLabs generative AI
+✅ **Intelligent conversations** - GPT-4o brain  
+✅ **Natural flow** - No scripts, adaptive responses
+✅ **Professional quality** - Perfect for B2B outreach
+✅ **Easy to use** - No complex configuration
+
+**Test it yourself and hear the difference!**
