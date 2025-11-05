@@ -140,9 +140,10 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
 
   ws.on('message', async (message: any) => {
     try {
+      console.log('[WS Raw Message]', message.toString());
       const data = JSON.parse(message.toString());
       const eventType = data.event || data.type;
-      console.log('[WS Event]', eventType, data);
+      console.log('[WS Event]', eventType, JSON.stringify(data, null, 2));
 
       if (eventType === 'setup') {
         callSid = data.callSid;
@@ -234,8 +235,8 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
     }
   });
 
-  ws.on('close', () => {
-    console.log('[WebSocket] Connection closed');
+  ws.on('close', (code, reason) => {
+    console.log('[WebSocket] Connection closed - Code:', code, 'Reason:', reason.toString());
     if (callSid) {
       conversations.delete(callSid);
     }
@@ -243,6 +244,14 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
 
   ws.on('error', (error) => {
     console.error('[WebSocket Error]', error);
+  });
+  
+  ws.on('ping', (data) => {
+    console.log('[WebSocket] Ping received');
+  });
+  
+  ws.on('pong', (data) => {
+    console.log('[WebSocket] Pong received');
   });
 }
 
@@ -261,8 +270,7 @@ const handleTwiML = (req: Request, res: Response) => {
   <Connect>
     <ConversationRelay 
       url="${xmlSafeUrl}"
-      ttsProvider="ElevenLabs"
-      voice="N2lVS1w4EtoT3dr4eOWO"
+      voice="Adam - Conversational (English (United States))"
       dtmfDetection="true"
     />
   </Connect>
