@@ -3,8 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, insertCallSessionSchema } from "@shared/schema";
 import { getTwilioClient, getTwilioFromPhoneNumber, generateTwiML } from "./twilio";
+import voiceRouter from "./voice";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register conversational voice routes
+  app.use("/voice", voiceRouter);
   // POST /api/leads - Create a new lead and optionally trigger call
   app.post("/api/leads", async (req, res) => {
     try {
@@ -39,10 +42,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           state: "INTRO",
         });
 
-        // Immediately dial
+        // Immediately dial using conversational voice
         const twilioClient = await getTwilioClient();
         const fromNumber = await getTwilioFromPhoneNumber();
-        const twiml = generateTwiML(lead.businessName, lead.productCategory, lead.brandName);
+        
+        // Get public URL (Replit provides this)
+        const publicUrl = process.env.REPLIT_DEV_DOMAIN 
+          ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+          : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
         // Update to DIALING state
         await storage.updateCallSession(callSession.id, { state: "DIALING" });
@@ -50,7 +57,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const call = await twilioClient.calls.create({
           to: lead.phoneNumber,
           from: fromNumber,
-          twiml: twiml,
+          url: `${publicUrl}/voice/start?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
+          machineDetection: 'Enable',
+          method: 'POST',
         });
 
         // Update with Twilio info
@@ -166,16 +175,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
-      const twiml = generateTwiML(
-        session.businessName,
-        session.productCategory,
-        session.brandName
-      );
+      
+      // Get public URL (Replit provides this)
+      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
       const call = await twilioClient.calls.create({
         to: session.phoneNumber,
         from: fromNumber,
-        twiml: twiml,
+        url: `${publicUrl}/voice/start?businessName=${encodeURIComponent(session.businessName)}&productCategory=${encodeURIComponent(session.productCategory)}&brandName=${encodeURIComponent(session.brandName)}`,
+        machineDetection: 'Enable',
+        method: 'POST',
       });
 
       // Update session with Twilio info
@@ -263,6 +274,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Get calls error:", error);
       res.status(500).json({ 
         message: error.message || "Failed to get call sessions" 
+      });
+    }
+  });
+
+  // POST /api/simulate - Test endpoint to trigger a call easily
+  app.post("/api/simulate", async (req, res) => {
+    try {
+      const { 
+        phoneNumber = "+15005550006", // Twilio test number
+        businessName = "Test Business",
+        productCategory = "Test Services",
+        brandName = "TestCo"
+      } = req.body;
+
+      // Create a test lead
+      const lead = await storage.createLead({
+        businessName,
+        contactName: "Test Contact",
+        phoneNumber,
+        productCategory,
+        brandName,
+      });
+
+      // Create call session
+      const callSession = await storage.createCallSession({
+        leadId: lead.id,
+        phoneNumber,
+        businessName,
+        productCategory,
+        brandName,
+        state: "INTRO",
+      });
+
+      // Trigger the call
+      const twilioClient = await getTwilioClient();
+      const fromNumber = await getTwilioFromPhoneNumber();
+      
+      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+
+      await storage.updateCallSession(callSession.id, { state: "DIALING" });
+
+      const call = await twilioClient.calls.create({
+        to: phoneNumber,
+        from: fromNumber,
+        url: `${publicUrl}/voice/start?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`,
+        machineDetection: 'Enable',
+        method: 'POST',
+      });
+
+      await storage.updateCallSession(callSession.id, {
+        twilioSid: call.sid,
+        twilioStatus: call.status,
+        state: "DIALING",
+      });
+
+      res.json({
+        message: "Call simulation triggered successfully",
+        lead,
+        callSession: await storage.getCallSession(callSession.id),
+        twilioCall: {
+          sid: call.sid,
+          status: call.status,
+          to: call.to,
+          from: call.from,
+        }
+      });
+    } catch (error: any) {
+      console.error("Simulation error:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to simulate call",
+        error: error.code ? `Twilio error ${error.code}` : undefined
       });
     }
   });
