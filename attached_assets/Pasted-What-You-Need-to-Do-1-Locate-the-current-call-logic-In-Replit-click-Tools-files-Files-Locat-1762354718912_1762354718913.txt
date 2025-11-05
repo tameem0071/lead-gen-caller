@@ -1,0 +1,171 @@
+What You Need to Do
+1. Locate the current call logic
+
+In Replit, click Tools & files → Files.
+
+Locate the file where Twilio calls are triggered. It’s likely named server.js, index.js, api.js, or dialer.ts. Look for a line similar to:
+
+client.calls.create({ … })
+
+
+This is the “dialer” function.
+
+2. Create a new file voice.js for conversational routes
+
+In the same folder as the server code:
+
+Click New file and create voice.js.
+
+Paste in this code, which defines a polite, natural conversation flow using Twilio’s Gather feature and Amazon Polly voice:
+
+const express = require('express');
+const router = express.Router();
+const { VoiceResponse } = require('twilio').twiml;
+
+// First turn: greet and ask for permission
+router.post('/voice/start', (req, res) => {
+  const vr = new VoiceResponse();
+  const gather = vr.gather({
+    input: 'speech',
+    speechTimeout: 'auto',
+    language: 'en-GB',
+    hints: 'yes,no,later,not now,sure',
+    action: '/voice/handle',
+    method: 'POST'
+  });
+  gather.say(
+    { voice: 'Polly.Joanna' },
+    `<speak>
+       <prosody rate="95%" pitch="+2%">
+         Hi, this is ${process.env.BRAND_NAME || 'our company'}. 
+         We’d love to talk briefly about our ${process.env.PRODUCT_CATEGORY || 'products'}. 
+         Do you have a moment?
+       </prosody>
+     </speak>`
+  );
+  // If no speech captured, redirect for a single reprompt
+  vr.redirect('/voice/reprompt');
+  res.type('text/xml').send(vr.toString());
+});
+
+// Reprompt once if the caller is silent
+router.post('/voice/reprompt', (req, res) => {
+  const vr = new VoiceResponse();
+  const gather = vr.gather({
+    input: 'speech',
+    speechTimeout: 'auto',
+    language: 'en-GB',
+    action: '/voice/handle',
+    method: 'POST'
+  });
+  gather.say(
+    { voice: 'Polly.Joanna' },
+    'Sorry, I didn’t catch that. Is now a good time to chat briefly?'
+  );
+  vr.say({ voice: 'Polly.Joanna' }, 'No worries. I’ll send details by text. Thanks!');
+  res.type('text/xml').send(vr.toString());
+});
+
+// Handle yes/no/busy replies
+router.post('/voice/handle', (req, res) => {
+  const vr = new VoiceResponse();
+  const speech = (req.body.SpeechResult || '').toLowerCase();
+
+  if (/(yes|sure|ok|yeah)/.test(speech)) {
+    // Ask one qualifying question
+    const g = vr.gather({
+      input: 'speech',
+      speechTimeout: 'auto',
+      language: 'en-GB',
+      action: '/voice/qualify',
+      method: 'POST'
+    });
+    g.say(
+      { voice: 'Polly.Joanna' },
+      'Great! One quick question: do you already stock this type of product, or are you just exploring?'
+    );
+  } else if (/(no|later|not now|busy)/.test(speech)) {
+    vr.say({ voice: 'Polly.Joanna' }, 'No problem. I’ll send more info by text. Have a great day!');
+    vr.hangup();
+  } else {
+    vr.say({ voice: 'Polly.Joanna' }, 'Understood. I’ll send details by text. Thanks!');
+    vr.hangup();
+  }
+
+  res.type('text/xml').send(vr.toString());
+});
+
+// Handle answer to qualifying question
+router.post('/voice/qualify', (req, res) => {
+  const vr = new VoiceResponse();
+  vr.say(
+    { voice: 'Polly.Joanna' },
+    'Thanks for your time! I’ll send our pricing and product details by text right now. Bye!'
+  );
+  vr.hangup();
+  res.type('text/xml').send(vr.toString());
+});
+
+module.exports = router;
+
+
+This uses Amazon Polly’s Joanna voice, allows the caller to interrupt, reprompts once on silence, and branches on yes/no responses.
+
+3. Mount the new voice routes
+
+Edit your main server file (server.js, index.js, or httpServer.ts) so it can handle Twilio’s webhook calls. Add these lines before your existing routes:
+
+const express = require('express');
+const app = express();
+app.use(express.urlencoded({ extended: true })); // Twilio sends form data
+app.use(express.json());
+
+// mount the voice routes
+const voiceRoutes = require('./voice'); // adjust path if needed
+app.use(voiceRoutes);
+
+// existing routes...
+// app.post('/call/start', ...)
+// app.post('/call/:callId/dial', ...)
+// app.get('/call/:id/status', ...)
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Listening on ${PORT}`));
+
+4. Update the dialer to use /voice/start
+
+Find the call creation code (it likely uses client.calls.create). Replace the url parameter with your new TwiML endpoint:
+
+await client.calls.create({
+  to: session.phoneNumber,
+  from: process.env.TWILIO_NUMBER,
+  url: `${process.env.PUBLIC_BASE_URL}/voice/start`,
+  machineDetection: 'Enable' // optional – helps skip voicemail
+});
+
+
+Set PUBLIC_BASE_URL (without trailing slash) in your Replit Secrets to your live .replit.dev URL.
+
+5. Add or update secrets in Replit
+
+Under Secrets, ensure these environment variables are set:
+
+TWILIO_ACCOUNT_SID – your Twilio account SID.
+
+TWILIO_AUTH_TOKEN – your Twilio auth token.
+
+TWILIO_NUMBER – your Twilio phone number (E.164 format like +14155550123).
+
+PUBLIC_BASE_URL – your app’s public URL (https://lead-capture-flow-<username>.replit.app).
+
+Optionally BRAND_NAME and PRODUCT_CATEGORY so the call script can greet the user with your actual brand/product.
+
+6. Test the improved caller
+
+Verify your personal phone number in Twilio (trial accounts can only call verified numbers).
+
+Run your Replit app.
+
+Use the call trigger (POST /call/start then /call/{id}/dial) or the UI to start a call.
+
+When you answer, the bot should greet you using the natural voice, ask if you have a minute, listen for a yes/no, and either ask a follow-up or politely end the call and promise to text.
