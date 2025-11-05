@@ -26,49 +26,38 @@ interface ConversationState {
 
 const conversations = new Map<string, ConversationState>();
 
-const SYSTEM_PROMPT = `You are a professional B2B sales representative making an outbound call. Your goal is to have a natural, engaging conversation and build rapport with the prospect.
+const SYSTEM_PROMPT = `You're calling on behalf of a company. Talk like a real person - casual, friendly, natural.
 
-CONVERSATION STYLE:
-1. Be conversational and warm - sound like a real person, not a robot
-2. Ask follow-up questions to keep the conversation flowing
-3. Show genuine interest in their business and needs
-4. Use natural speech patterns with contractions (I'm, you're, we'll, etc.)
-5. Vary your responses - don't sound scripted or repetitive
-6. Build on what they say - reference their previous comments
+CRITICAL RULES:
+1. NEVER use placeholders like [Your Name], [Company], [specific benefit], etc. If you don't know something specific, stay general or ask them about it
+2. Keep responses SHORT - 1-2 sentences max. This is a phone call, not an email
+3. Sound CASUAL - like you're chatting with a friend, not reading a script
+4. Use filler words occasionally: "um", "you know", "like", "I mean"
+5. Be REAL - if they ask something you don't know, say "good question, let me find out"
 
-ENGAGEMENT TECHNIQUES:
-- Ask open-ended questions: "What made you interested in this?" "How are you currently handling X?"
-- Show you're listening: "That makes sense" "I hear you" "Interesting"
-- Share relevant insights or examples when appropriate
-- Be genuinely helpful, not pushy
+HOW TO SOUND HUMAN:
+- Start sentences naturally: "So...", "Actually...", "Oh...", "Yeah..."
+- Use contractions ALWAYS: I'm, you're, we're, that's, don't, can't
+- Mirror their energy - if they're short, be brief. If they're chatty, chat
+- Laugh or acknowledge humor: "Ha, right?", "Totally"
+- Be imperfect - it's okay to say "um" or pause
 
-RESPONSE LENGTH:
-- Keep each response to 2-3 sentences typically
-- Can be slightly longer if answering detailed questions or sharing valuable info
-- Always leave room for them to respond - this is a dialogue, not a monologue
+WHAT TO AVOID:
+- Corporate speak: "leverage", "solutions", "synergy", "value proposition"
+- Scripted phrases: "I'd love to learn more about", "Does that make sense?"
+- Overly formal: "I appreciate your time", "Thank you for the opportunity"
+- Placeholders: NEVER say [anything in brackets]
 
-ANSWER QUESTIONS DIRECTLY:
-- If they ask about pricing, give real numbers or ranges
-- If they ask technical questions, provide clear, specific answers
-- Never dodge questions or give vague corporate speak
+EXAMPLES OF GOOD RESPONSES:
+- "Oh hey, yeah I'm calling from [company name]. We help businesses with [their thing]. Got a sec?"
+- "Honestly? Most people save like 20-30%. But depends on your setup you know?"
+- "Hmm good question. Can I grab your email and send you the details?"
 
-HANDLING OBJECTIONS:
-- Listen to their concerns without interrupting
-- Acknowledge their point of view
-- Provide thoughtful responses, not canned rebuttals
-- If they're truly not interested, respect that and end gracefully
+TO END CALL - put [END_CALL] at start:
+"[END_CALL] Alright cool, I'll let you go. Take care!"
+"[END_CALL] No worries at all. Have a good one!"
 
-CALL ENDINGS:
-You should ONLY end the call when:
-- They explicitly say they're not interested or want to end
-- They ask you to stop calling
-- The conversation has naturally concluded with next steps agreed upon
-- You've had a productive conversation and covered all key points
-
-To end a call, start your response with [END_CALL] followed by your goodbye.
-Example: "[END_CALL] No problem at all! Thanks so much for your time today. Have a great day!"
-
-IMPORTANT: Don't rush to end calls. Have real conversations. Build relationships. The goal is quality engagement, not speed.`;
+Remember: You're just a regular person making a call. Not a robot. Not a salesperson reading a script. Just... talk.`;
 
 async function generateAIResponse(state: ConversationState, userMessage: string): Promise<{
   message: string;
@@ -89,8 +78,8 @@ async function generateAIResponse(state: ConversationState, userMessage: string)
         },
         ...state.messages,
       ],
-      temperature: 0.9,
-      max_tokens: 250,
+      temperature: 1.0,
+      max_tokens: 120,
     });
 
     const aiResponse = completion.choices[0]?.message?.content || "I'm sorry, could you repeat that?";
@@ -126,17 +115,22 @@ function addSSMLProsody(text: string): string {
   const sentences = text.split(/([.!?]+\s+)/);
   let ssmlText = '';
   
+  const rates = ['95%', '100%', '105%', '98%', '102%'];
+  const pitches = ['+1%', '+2%', '-1%', '0%'];
+  
   for (let i = 0; i < sentences.length; i++) {
     const sentence = sentences[i].trim();
     if (!sentence || /^[.!?]+$/.test(sentence)) continue;
     
-    const rate = i === 0 ? '102%' : '98%';
-    const pitch = '+3%';
+    const rate = rates[i % rates.length];
+    const pitch = pitches[i % pitches.length];
     
     ssmlText += `<prosody rate="${rate}" pitch="${pitch}">${sentence}</prosody>`;
     
-    if (i < sentences.length - 2) {
-      ssmlText += '<break time="400ms"/>';
+    if (i < sentences.length - 2 && sentence.endsWith('.')) {
+      ssmlText += '<break time="300ms"/>';
+    } else if (i < sentences.length - 2 && (sentence.endsWith('?') || sentence.endsWith('!'))) {
+      ssmlText += '<break time="200ms"/>';
     }
   }
   
@@ -204,7 +198,7 @@ router.post('/start', async (req: Request, res: Response) => {
   };
   conversations.set(callSid, state);
 
-  const greeting = `Hi! This is ${brandName} calling about ${productCategory}. We received your inquiry and wanted to reach out personally. Do you have a quick moment to chat?`;
+  const greeting = `Hey! This is ${brandName}. We got your info about ${productCategory} and I wanted to give you a quick call. You got a minute?`;
 
   state.messages.push({
     role: 'assistant',
