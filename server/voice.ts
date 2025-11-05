@@ -26,29 +26,49 @@ interface ConversationState {
 
 const conversations = new Map<string, ConversationState>();
 
-const SYSTEM_PROMPT = `You are a professional B2B sales representative making an outbound call. Your goal is to have a natural, helpful conversation.
+const SYSTEM_PROMPT = `You are a professional B2B sales representative making an outbound call. Your goal is to have a natural, engaging conversation and build rapport with the prospect.
 
-CRITICAL RULES:
-1. Keep responses SHORT - 1-2 sentences max. Phone calls need to be conversational, not lectures.
-2. Answer questions DIRECTLY. If they ask "how much", give a clear answer or range.
-3. Be HUMAN - use natural speech, contractions, and casual language.
-4. Listen and respond to what they ACTUALLY say, not what you expect.
-5. If they're not interested, politely end the call immediately.
-6. If they want to talk to someone else, offer to have a manager call them back.
-7. Never repeat yourself or ignore what they just said.
+CONVERSATION STYLE:
+1. Be conversational and warm - sound like a real person, not a robot
+2. Ask follow-up questions to keep the conversation flowing
+3. Show genuine interest in their business and needs
+4. Use natural speech patterns with contractions (I'm, you're, we'll, etc.)
+5. Vary your responses - don't sound scripted or repetitive
+6. Build on what they say - reference their previous comments
 
-CONVERSATION GOALS (in order):
-- Qualify if they're interested in the product
-- Answer any questions they have
-- Offer to send information via text
-- Schedule a follow-up if appropriate
+ENGAGEMENT TECHNIQUES:
+- Ask open-ended questions: "What made you interested in this?" "How are you currently handling X?"
+- Show you're listening: "That makes sense" "I hear you" "Interesting"
+- Share relevant insights or examples when appropriate
+- Be genuinely helpful, not pushy
 
-TONE: Friendly, professional, conversational. Like a real human having a chat.
+RESPONSE LENGTH:
+- Keep each response to 2-3 sentences typically
+- Can be slightly longer if answering detailed questions or sharing valuable info
+- Always leave room for them to respond - this is a dialogue, not a monologue
 
-When you want to END the call, your response MUST start with [END_CALL] followed by your goodbye message.
-Example: "[END_CALL] No problem at all! Thanks for your time. Have a great day!"
+ANSWER QUESTIONS DIRECTLY:
+- If they ask about pricing, give real numbers or ranges
+- If they ask technical questions, provide clear, specific answers
+- Never dodge questions or give vague corporate speak
 
-DO NOT use [END_CALL] unless the person is clearly not interested, wants to end the call, or the conversation has reached a natural conclusion.`;
+HANDLING OBJECTIONS:
+- Listen to their concerns without interrupting
+- Acknowledge their point of view
+- Provide thoughtful responses, not canned rebuttals
+- If they're truly not interested, respect that and end gracefully
+
+CALL ENDINGS:
+You should ONLY end the call when:
+- They explicitly say they're not interested or want to end
+- They ask you to stop calling
+- The conversation has naturally concluded with next steps agreed upon
+- You've had a productive conversation and covered all key points
+
+To end a call, start your response with [END_CALL] followed by your goodbye.
+Example: "[END_CALL] No problem at all! Thanks so much for your time today. Have a great day!"
+
+IMPORTANT: Don't rush to end calls. Have real conversations. Build relationships. The goal is quality engagement, not speed.`;
 
 async function generateAIResponse(state: ConversationState, userMessage: string): Promise<{
   message: string;
@@ -61,16 +81,16 @@ async function generateAIResponse(state: ConversationState, userMessage: string)
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: SYSTEM_PROMPT + `\n\nCONTEXT: You're calling from ${state.brandName} about ${state.productCategory}. The business you're calling is ${state.businessName}.`,
+          content: SYSTEM_PROMPT + `\n\nCONTEXT: You're calling from ${state.brandName} about ${state.productCategory}. The business you're calling is ${state.businessName}. Be knowledgeable about your product/service and answer questions confidently.`,
         },
         ...state.messages,
       ],
-      temperature: 0.8,
-      max_tokens: 150,
+      temperature: 0.9,
+      max_tokens: 250,
     });
 
     const aiResponse = completion.choices[0]?.message?.content || "I'm sorry, could you repeat that?";
@@ -90,13 +110,6 @@ async function generateAIResponse(state: ConversationState, userMessage: string)
 
     state.turnCount++;
 
-    if (state.turnCount >= 8) {
-      shouldEndCall = true;
-      if (!cleanResponse.toLowerCase().includes('goodbye') && !cleanResponse.toLowerCase().includes('bye')) {
-        cleanResponse += " Thanks so much for your time today!";
-      }
-    }
-
     console.log(`[AI Response] Turn ${state.turnCount}: "${cleanResponse}" (shouldEnd: ${shouldEndCall})`);
 
     return { message: cleanResponse, shouldEndCall };
@@ -109,8 +122,29 @@ async function generateAIResponse(state: ConversationState, userMessage: string)
   }
 }
 
+function addSSMLProsody(text: string): string {
+  const sentences = text.split(/([.!?]+\s+)/);
+  let ssmlText = '';
+  
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i].trim();
+    if (!sentence || /^[.!?]+$/.test(sentence)) continue;
+    
+    const rate = i === 0 ? '102%' : '98%';
+    const pitch = '+3%';
+    
+    ssmlText += `<prosody rate="${rate}" pitch="${pitch}">${sentence}</prosody>`;
+    
+    if (i < sentences.length - 2) {
+      ssmlText += '<break time="400ms"/>';
+    }
+  }
+  
+  return ssmlText;
+}
+
 function buildTwiML(message: string, shouldEndCall: boolean): string {
-  const voice = 'Polly.Joanna';
+  const voice = 'Polly.Matthew-Generative';
   
   const escapedMessage = message
     .replace(/&/g, '&amp;')
@@ -119,10 +153,16 @@ function buildTwiML(message: string, shouldEndCall: boolean): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
+  const ssmlMessage = addSSMLProsody(escapedMessage);
+
   if (shouldEndCall) {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="${voice}">${escapedMessage}</Say>
+  <Say voice="${voice}" language="en-US">
+    <speak>
+      ${ssmlMessage}
+    </speak>
+  </Say>
   <Pause length="1"/>
   <Hangup/>
 </Response>`;
@@ -130,18 +170,26 @@ function buildTwiML(message: string, shouldEndCall: boolean): string {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="${voice}">${escapedMessage}</Say>
+  <Say voice="${voice}" language="en-US">
+    <speak>
+      ${ssmlMessage}
+    </speak>
+  </Say>
   <Gather
     input="speech"
     action="/voice/handle"
     method="POST"
     speechTimeout="auto"
-    timeout="6"
+    timeout="7"
     profanityFilter="false"
     language="en-US"
   >
   </Gather>
-  <Say voice="${voice}">I didn't hear anything. Are you still there?</Say>
+  <Say voice="${voice}" language="en-US">
+    <speak>
+      <prosody rate="95%" pitch="+2%">I didn't hear anything. Are you still there?</prosody>
+    </speak>
+  </Say>
   <Redirect>/voice/handle</Redirect>
 </Response>`;
 }
@@ -220,7 +268,7 @@ router.post('/handle', async (req: Request, res: Response) => {
 });
 
 setInterval(() => {
-  const maxAge = 15 * 60 * 1000;
+  const maxAge = 30 * 60 * 1000;
   const now = Date.now();
   
   for (const [callSid, state] of Array.from(conversations.entries())) {
@@ -228,6 +276,6 @@ setInterval(() => {
       conversations.delete(callSid);
     }
   }
-}, 5 * 60 * 1000);
+}, 10 * 60 * 1000);
 
 export default router;
