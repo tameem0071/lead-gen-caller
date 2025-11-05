@@ -379,12 +379,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up WebSocket server for ConversationRelay
   const wss = new WebSocketServer({ 
     server: httpServer, 
-    path: '/voice/relay' 
+    path: '/voice/relay',
+    perMessageDeflate: false,
   });
 
   wss.on('connection', (ws, req) => {
-    console.log('[WebSocket] New connection to /voice/relay');
+    console.log('[WebSocket] ✅ New connection to /voice/relay');
+    console.log('[WebSocket] Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('[WebSocket] URL:', req.url);
     handleConversationWebSocket(ws, req);
+  });
+
+  wss.on('error', (error) => {
+    console.error('[WebSocket Server Error]', error);
   });
 
   console.log('[Server] WebSocket server listening on /voice/relay');
