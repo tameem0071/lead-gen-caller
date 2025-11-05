@@ -1,330 +1,233 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import OpenAI from 'openai';
 
 const router = Router();
 
-// In-memory conversation state keyed by CallSid
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
+
+interface Message {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 interface ConversationState {
   callSid: string;
-  attempts: number;
-  stage: 'greeting' | 'interest_check' | 'pricing' | 'scheduling' | 'closing';
-  businessName?: string;
-  productCategory?: string;
-  brandName?: string;
-  userResponses: string[];
-  lastIntent?: string;
+  businessName: string;
+  productCategory: string;
+  brandName: string;
+  messages: Message[];
+  turnCount: number;
+  hasGreeted: boolean;
 }
 
 const conversations = new Map<string, ConversationState>();
 
-// Intent recognition - simple rule-based
-function detectIntent(speechResult: string | undefined, confidence: string | undefined): {
-  intent: string;
-  confidence: number;
-} {
-  if (!speechResult) {
-    return { intent: 'silence', confidence: 0 };
-  }
+const SYSTEM_PROMPT = `You are a professional B2B sales representative making an outbound call. Your goal is to have a natural, helpful conversation.
 
-  const text = speechResult.toLowerCase().trim();
-  const conf = parseFloat(confidence || '0');
+CRITICAL RULES:
+1. Keep responses SHORT - 1-2 sentences max. Phone calls need to be conversational, not lectures.
+2. Answer questions DIRECTLY. If they ask "how much", give a clear answer or range.
+3. Be HUMAN - use natural speech, contractions, and casual language.
+4. Listen and respond to what they ACTUALLY say, not what you expect.
+5. If they're not interested, politely end the call immediately.
+6. If they want to talk to someone else, offer to have a manager call them back.
+7. Never repeat yourself or ignore what they just said.
 
-  // Low confidence threshold
-  if (conf < 0.5) {
-    return { intent: 'unclear', confidence: conf };
-  }
+CONVERSATION GOALS (in order):
+- Qualify if they're interested in the product
+- Answer any questions they have
+- Offer to send information via text
+- Schedule a follow-up if appropriate
 
-  // Intent patterns
-  if (/\b(yes|yeah|sure|absolutely|definitely|interested|sounds good)\b/.test(text)) {
-    return { intent: 'affirmative', confidence: conf };
-  }
-  
-  if (/\b(no|nope|not interested|no thanks|don't|stop)\b/.test(text)) {
-    return { intent: 'negative', confidence: conf };
-  }
-  
-  if (/\b(price|cost|pricing|how much|expensive|cheap|afford)\b/.test(text)) {
-    return { intent: 'pricing_inquiry', confidence: conf };
-  }
-  
-  if (/\b(call back|later|schedule|another time|busy|not now)\b/.test(text)) {
-    return { intent: 'schedule_followup', confidence: conf };
-  }
-  
-  if (/\b(owner|manager|decision maker|boss|supervisor)\b/.test(text)) {
-    return { intent: 'transfer_request', confidence: conf };
-  }
+TONE: Friendly, professional, conversational. Like a real human having a chat.
 
-  // Default to unclear if no pattern matched
-  return { intent: 'unclear', confidence: conf };
+When you want to END the call, your response MUST start with [END_CALL] followed by your goodbye message.
+Example: "[END_CALL] No problem at all! Thanks for your time. Have a great day!"
+
+DO NOT use [END_CALL] unless the person is clearly not interested, wants to end the call, or the conversation has reached a natural conclusion.`;
+
+async function generateAIResponse(state: ConversationState, userMessage: string): Promise<{
+  message: string;
+  shouldEndCall: boolean;
+}> {
+  state.messages.push({
+    role: 'user',
+    content: userMessage,
+  });
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: SYSTEM_PROMPT + `\n\nCONTEXT: You're calling from ${state.brandName} about ${state.productCategory}. The business you're calling is ${state.businessName}.`,
+        },
+        ...state.messages,
+      ],
+      temperature: 0.8,
+      max_tokens: 150,
+    });
+
+    const aiResponse = completion.choices[0]?.message?.content || "I'm sorry, could you repeat that?";
+    
+    let shouldEndCall = false;
+    let cleanResponse = aiResponse;
+
+    if (aiResponse.startsWith('[END_CALL]')) {
+      shouldEndCall = true;
+      cleanResponse = aiResponse.replace('[END_CALL]', '').trim();
+    }
+
+    state.messages.push({
+      role: 'assistant',
+      content: cleanResponse,
+    });
+
+    state.turnCount++;
+
+    if (state.turnCount >= 8) {
+      shouldEndCall = true;
+      if (!cleanResponse.toLowerCase().includes('goodbye') && !cleanResponse.toLowerCase().includes('bye')) {
+        cleanResponse += " Thanks so much for your time today!";
+      }
+    }
+
+    console.log(`[AI Response] Turn ${state.turnCount}: "${cleanResponse}" (shouldEnd: ${shouldEndCall})`);
+
+    return { message: cleanResponse, shouldEndCall };
+  } catch (error) {
+    console.error('[AI Error]', error);
+    return {
+      message: "I'm having a bit of technical difficulty. Let me have someone call you back shortly.",
+      shouldEndCall: true,
+    };
+  }
 }
 
-// Generate natural TwiML response
-function generateResponse(state: ConversationState, intent: string): string {
-  let message = '';
-  let nextAction: 'gather' | 'hangup' = 'gather';
-  let nextStage = state.stage;
+function buildTwiML(message: string, shouldEndCall: boolean): string {
+  const voice = 'Polly.Joanna';
+  
+  const escapedMessage = message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 
-  switch (state.stage) {
-    case 'greeting':
-      if (intent === 'affirmative') {
-        message = "Great! Let me tell you a bit more about what we offer.";
-        nextStage = 'interest_check';
-      } else if (intent === 'negative') {
-        message = "No problem at all. Thanks for your time, and have a wonderful day!";
-        nextAction = 'hangup';
-      } else if (intent === 'schedule_followup') {
-        message = "I understand you're busy. We'll follow up with you via text shortly. Have a great day!";
-        nextAction = 'hangup';
-      } else if (intent === 'transfer_request') {
-        message = "I'd be happy to have someone from our team reach out directly. We'll have a manager contact you shortly. Thanks for your time!";
-        nextAction = 'hangup';
-      } else if (intent === 'pricing_inquiry') {
-        message = "Great question! We have very competitive pricing. Would you like us to send you a detailed quote via text?";
-        nextStage = 'pricing';
-      } else {
-        message = "I didn't quite catch that. Are you interested in learning more about our services?";
-      }
-      break;
-
-    case 'interest_check':
-      if (intent === 'pricing_inquiry') {
-        message = `Our pricing is very competitive. We'd love to provide you with a custom quote. Would you like us to send that over via text?`;
-        nextStage = 'pricing';
-      } else if (intent === 'affirmative') {
-        message = "Excellent! Would you like to know about our pricing, or should we schedule a follow-up call?";
-        nextStage = 'pricing';
-      } else if (intent === 'negative') {
-        message = "I appreciate your time. If anything changes, feel free to reach out. Take care!";
-        nextAction = 'hangup';
-      } else if (intent === 'schedule_followup') {
-        message = "No problem! We'll follow up with you at a better time. Thank you!";
-        nextAction = 'hangup';
-      } else if (intent === 'transfer_request') {
-        message = "Absolutely! I'll make sure one of our senior team members reaches out to you directly. Have a great day!";
-        nextAction = 'hangup';
-      } else {
-        message = "Would you be interested in hearing about our pricing and options?";
-      }
-      break;
-
-    case 'pricing':
-      if (intent === 'affirmative') {
-        message = "Perfect! We'll send you detailed pricing via text message shortly. Is there anything else I can help with?";
-        nextStage = 'closing';
-      } else if (intent === 'schedule_followup') {
-        message = "Sounds good. We'll reach out to schedule a convenient time. Thanks so much!";
-        nextAction = 'hangup';
-      } else if (intent === 'negative') {
-        message = "No worries. Thanks for your time today!";
-        nextAction = 'hangup';
-      } else if (intent === 'transfer_request') {
-        message = "I completely understand. We'll have a senior team member contact you with all the pricing details. Thanks for your interest!";
-        nextAction = 'hangup';
-      } else {
-        message = "Should we send you our pricing information via text?";
-      }
-      break;
-
-    case 'closing':
-      if (intent === 'transfer_request') {
-        message = "Absolutely! We'll have a manager reach out to you directly. Thank you so much for your time!";
-        nextAction = 'hangup';
-      } else if (intent === 'schedule_followup') {
-        message = "Perfect! We'll be in touch to schedule a follow-up. Have a wonderful day!";
-        nextAction = 'hangup';
-      } else {
-        message = "Thank you so much for your time. We'll be in touch soon. Have a great day!";
-        nextAction = 'hangup';
-      }
-      break;
+  if (shouldEndCall) {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="${voice}">${escapedMessage}</Say>
+  <Pause length="1"/>
+  <Hangup/>
+</Response>`;
   }
 
-  // Update state
-  state.stage = nextStage;
-  state.lastIntent = intent;
-
-  // Build TwiML
-  const voice = 'Polly.Joanna'; // Amazon Polly Joanna for natural sound
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="${voice}">${message}</Say>
-  ${nextAction === 'gather' ? `
+  <Say voice="${voice}">${escapedMessage}</Say>
   <Gather
     input="speech"
     action="/voice/handle"
     method="POST"
     speechTimeout="auto"
-    timeout="5"
-    hints="yes,no,price,pricing,cost,owner,manager,later,call back,not interested,busy"
+    timeout="6"
     profanityFilter="false"
+    language="en-US"
   >
   </Gather>
-  <Say voice="${voice}">I didn't hear anything. Let me try again.</Say>
+  <Say voice="${voice}">I didn't hear anything. Are you still there?</Say>
   <Redirect>/voice/handle</Redirect>
-  ` : `
-  <Pause length="1"/>
-  <Hangup/>
-  `}
 </Response>`;
-
-  return twiml;
 }
 
-// POST /voice/start - Initial greeting and first question
-router.post('/start', (req: Request, res: Response) => {
+router.post('/start', async (req: Request, res: Response) => {
   const callSid = req.body.CallSid;
   const to = req.body.To;
   const from = req.body.From;
 
-  // Extract business context from query parameters or body (Twilio sends custom params in body)
-  const businessName = req.query.businessName as string || req.body.businessName || 'a potential customer';
+  const businessName = req.query.businessName as string || req.body.businessName || 'your business';
   const productCategory = req.query.productCategory as string || req.body.productCategory || 'our services';
   const brandName = req.query.brandName as string || req.body.brandName || 'our company';
 
   console.log(`[Voice Start] CallSid: ${callSid}, To: ${to}, From: ${from}, Business: ${businessName}`);
 
-  // Initialize conversation state
   const state: ConversationState = {
     callSid,
-    attempts: 0,
-    stage: 'greeting',
     businessName,
     productCategory,
     brandName,
-    userResponses: [],
+    messages: [],
+    turnCount: 0,
+    hasGreeted: true,
   };
   conversations.set(callSid, state);
 
-  // Generate greeting with first question
-  const voice = 'Polly.Joanna';
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="${voice}">
-    Hi! This is ${brandName} calling about ${productCategory}.
-    We received your request and wanted to reach out personally.
-    Do you have a quick moment to chat?
-  </Say>
-  <Gather
-    input="speech"
-    action="/voice/handle"
-    method="POST"
-    speechTimeout="auto"
-    timeout="5"
-    hints="yes,no,sure,yeah,not interested,busy,later"
-    profanityFilter="false"
-  >
-  </Gather>
-  <Say voice="${voice}">I didn't hear a response. Are you still there?</Say>
-  <Redirect>/voice/handle</Redirect>
-</Response>`;
+  const greeting = `Hi! This is ${brandName} calling about ${productCategory}. We received your inquiry and wanted to reach out personally. Do you have a quick moment to chat?`;
 
-  res.type('text/xml');
-  res.send(twiml);
+  state.messages.push({
+    role: 'assistant',
+    content: greeting,
+  });
+
+  const twiml = buildTwiML(greeting, false);
+  res.type('text/xml').send(twiml);
 });
 
-// POST /voice/handle - Parse speech and respond
-router.post('/handle', (req: Request, res: Response) => {
+router.post('/handle', async (req: Request, res: Response) => {
   const callSid = req.body.CallSid;
   const speechResult = req.body.SpeechResult;
   const confidence = req.body.Confidence;
 
   console.log(`[Voice Handle] CallSid: ${callSid}, Speech: "${speechResult}", Confidence: ${confidence}`);
 
-  // Get or create conversation state
   let state = conversations.get(callSid);
   if (!state) {
-    console.warn(`[Voice Handle] No state found for ${callSid}, creating new state`);
-    state = {
-      callSid,
-      attempts: 0,
-      stage: 'greeting',
-      userResponses: [],
-    };
-    conversations.set(callSid, state);
-  }
-
-  // Store user response
-  if (speechResult) {
-    state.userResponses.push(speechResult);
-  }
-
-  // Detect intent
-  const { intent, confidence: detectedConfidence } = detectIntent(speechResult, confidence);
-  console.log(`[Voice Handle] Detected intent: ${intent} (confidence: ${detectedConfidence})`);
-
-  // Handle silence or unclear responses with retry limit
-  if ((intent === 'silence' || intent === 'unclear') && state.attempts < 2) {
-    state.attempts++;
-    
-    const voice = 'Polly.Joanna';
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="${voice}">
-    Sorry, I didn't quite catch that. Could you repeat that for me?
-  </Say>
-  <Gather
-    input="speech"
-    action="/voice/handle"
-    method="POST"
-    speechTimeout="auto"
-    timeout="5"
-    hints="yes,no,price,pricing,owner,manager,later,not interested"
-    profanityFilter="false"
-  >
-  </Gather>
-  <Say voice="${voice}">I'm having trouble hearing you. We'll follow up another way. Goodbye!</Say>
-  <Hangup/>
-</Response>`;
-    
-    res.type('text/xml');
-    res.send(twiml);
+    console.warn(`[Voice Handle] No state found for ${callSid}, ending call`);
+    const twiml = buildTwiML("I'm sorry, we seem to have lost the connection. We'll call you back shortly.", true);
+    res.type('text/xml').send(twiml);
     return;
   }
 
-  // Max retries exceeded - graceful exit
-  if (state.attempts >= 2) {
-    const voice = 'Polly.Joanna';
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="${voice}">
-    We're having trouble with the connection. We'll reach out via text instead. Have a great day!
-  </Say>
-  <Hangup/>
-</Response>`;
-    
-    // Clean up state
+  if (!speechResult || speechResult.trim() === '') {
+    const twiml = buildTwiML("I'm having trouble hearing you. Let me have someone call you back. Thanks!", true);
     conversations.delete(callSid);
-    
-    res.type('text/xml');
-    res.send(twiml);
+    res.type('text/xml').send(twiml);
     return;
   }
 
-  // Reset attempts on successful recognition
-  state.attempts = 0;
-
-  // Generate contextual response
-  const twiml = generateResponse(state, intent);
-  
-  // Clean up state if call is ending
-  if (twiml.includes('<Hangup')) {
-    setTimeout(() => conversations.delete(callSid), 60000); // Clean up after 1 minute
+  const conf = parseFloat(confidence || '0');
+  if (conf < 0.4) {
+    console.log(`[Voice Handle] Low confidence (${conf}), asking for repeat`);
+    const twiml = buildTwiML("Sorry, I didn't catch that. Could you say that again?", false);
+    res.type('text/xml').send(twiml);
+    return;
   }
 
-  res.type('text/xml');
-  res.send(twiml);
+  const { message, shouldEndCall } = await generateAIResponse(state, speechResult);
+  const twiml = buildTwiML(message, shouldEndCall);
+
+  if (shouldEndCall) {
+    setTimeout(() => conversations.delete(callSid), 30000);
+  }
+
+  res.type('text/xml').send(twiml);
 });
 
-// Cleanup old conversation states (run periodically)
 setInterval(() => {
+  const maxAge = 15 * 60 * 1000;
   const now = Date.now();
-  const timeout = 10 * 60 * 1000; // 10 minutes
   
   for (const [callSid, state] of Array.from(conversations.entries())) {
-    // Note: We'd need to track timestamp in state for proper cleanup
-    // For now, we rely on manual cleanup after hangup
+    if (state.turnCount > 0) {
+      conversations.delete(callSid);
+    }
   }
-}, 5 * 60 * 1000); // Every 5 minutes
+}, 5 * 60 * 1000);
 
 export default router;
