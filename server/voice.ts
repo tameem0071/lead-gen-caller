@@ -261,8 +261,8 @@ const handleTwiML = (req: Request, res: Response) => {
   <Connect>
     <ConversationRelay 
       url="${xmlSafeUrl}"
-      ttsProvider="amazon"
-      voice="Polly.Matthew-Neural"
+      ttsProvider="ElevenLabs"
+      voice="pNInz6obpgDQGcFmaJgB"
       dtmfDetection="true"
     />
   </Connect>
