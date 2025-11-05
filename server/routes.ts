@@ -60,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const call = await twilioClient.calls.create({
           to: lead.phoneNumber,
           from: fromNumber,
-          url: `${publicUrl}/voice/twiml-enhanced?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
+          url: `${publicUrl}/voice/twiml?businessName=${encodeURIComponent(lead.businessName)}&productCategory=${encodeURIComponent(lead.productCategory)}&brandName=${encodeURIComponent(lead.brandName)}`,
           machineDetection: 'Enable',
           method: 'POST',
         });
@@ -187,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const call = await twilioClient.calls.create({
         to: session.phoneNumber,
         from: fromNumber,
-        url: `${publicUrl}/voice/twiml-enhanced?businessName=${encodeURIComponent(session.businessName)}&productCategory=${encodeURIComponent(session.productCategory)}&brandName=${encodeURIComponent(session.brandName)}`,
+        url: `${publicUrl}/voice/twiml?businessName=${encodeURIComponent(session.businessName)}&productCategory=${encodeURIComponent(session.productCategory)}&brandName=${encodeURIComponent(session.brandName)}`,
         machineDetection: 'Enable',
         method: 'POST',
       });
