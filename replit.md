@@ -95,12 +95,26 @@ Preferred communication style: Simple, everyday language.
 ### External Dependencies
 
 **Twilio Integration:**
-- Voice API for outbound calling
-- TwiML generation for call scripts
+- Voice API for outbound calling via ConversationRelay
+- ElevenLabs ultra-realistic voice synthesis (Adam - professional male)
+- TwiML generation with ConversationRelay configuration
+- WebSocket-based real-time conversation handling
 - Credential management via Replit Connectors API
 - Dynamic credential fetching (account SID, API key, API secret, phone number)
 - Authentication: API key-based (not account SID + auth token)
-- Webhook support designed but not fully implemented
+
+**Voice System (ElevenLabs + ConversationRelay):**
+- **Architecture:** Twilio ConversationRelay → WebSocket → GPT-4 → ElevenLabs TTS
+- **Voice Quality:** ElevenLabs "Adam" voice (voice ID: `pNInz6obpgDQGcFmaJgB`)
+- **Speech Synthesis:** Ultra-realistic generative AI voice (75ms latency)
+- **AI Model:** GPT-4o for intelligent conversation (temperature 1.0, max 100 tokens)
+- **Conversation Style:** "Alex" personality - casual, friendly, brief responses
+- **WebSocket Protocol:** Handles `setup`, `prompt`, `interrupt`, `dtmf`, `error`, `stop` events
+- **Response Format:** `{ token: "...", last: true }` for Twilio ConversationRelay
+- **Endpoints:**
+  - `POST /voice/twiml` - TwiML endpoint with ConversationRelay configuration
+  - `WebSocket /voice/relay` - Real-time conversation handler
+- **No SSML Required:** Plain text responses automatically converted to natural speech
 
 **Replit Platform Services:**
 - Connector system for secure credential storage (Twilio)
