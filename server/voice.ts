@@ -325,10 +325,31 @@ const handlePollyTest = (req: Request, res: Response) => {
   res.type('text/xml').send(twiml);
 };
 
+// Ultra-minimal test - default voice, minimal parameters
+const handleMinimalTest = (req: Request, res: Response) => {
+  const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay`;
+  const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
+
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <ConversationRelay 
+      url="${xmlSafeUrl}"
+      welcomeGreeting="Hello! This is a test call."
+    />
+  </Connect>
+</Response>`;
+
+  console.log(`[Minimal Test] ${req.method} request - Testing WebSocket with default voice and minimal config`);
+  res.type('text/xml').send(twiml);
+};
+
 router.get('/twiml', handleTwiML);
 router.post('/twiml', handleTwiML);
 router.get('/twiml-polly-test', handlePollyTest);
 router.post('/twiml-polly-test', handlePollyTest);
+router.get('/twiml-minimal', handleMinimalTest);
+router.post('/twiml-minimal', handleMinimalTest);
 router.get('/twiml-test', handleSimpleTwiML);
 router.post('/twiml-test', handleSimpleTwiML);
 

@@ -149,6 +149,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Minimal test - absolutely minimal ConversationRelay config
+  app.post("/api/test-minimal-call", async (req, res) => {
+    try {
+      const phoneNumber = req.body.phoneNumber;
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number required" });
+      }
+
+      const twilioClient = await getTwilioClient();
+      const fromNumber = await getTwilioFromPhoneNumber();
+      
+      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+
+      const call = await twilioClient.calls.create({
+        to: phoneNumber,
+        from: fromNumber,
+        url: `${publicUrl}/voice/twiml-minimal`,
+        method: 'POST',
+      });
+
+      console.log(`[Minimal Test] Call initiated to ${phoneNumber}, SID: ${call.sid}`);
+      res.json({ 
+        success: true, 
+        callSid: call.sid,
+        message: "Minimal test call initiated - testing WebSocket with absolute minimal config" 
+      });
+    } catch (error: any) {
+      console.error("[Minimal Test] Error:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to initiate test call" 
+      });
+    }
+  });
+
   // GET /api/leads - Get all leads
   app.get("/api/leads", async (_req, res) => {
     try {
