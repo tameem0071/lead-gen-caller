@@ -158,11 +158,7 @@ function buildTwiML(message: string, shouldEndCall: boolean): string {
   if (shouldEndCall) {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="${voice}" language="en-US">
-    <speak>
-      ${ssmlMessage}
-    </speak>
-  </Say>
+  <Say voice="${voice}" language="en-US">${ssmlMessage}</Say>
   <Pause length="1"/>
   <Hangup/>
 </Response>`;
@@ -170,11 +166,7 @@ function buildTwiML(message: string, shouldEndCall: boolean): string {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="${voice}" language="en-US">
-    <speak>
-      ${ssmlMessage}
-    </speak>
-  </Say>
+  <Say voice="${voice}" language="en-US">${ssmlMessage}</Say>
   <Gather
     input="speech"
     action="/voice/handle"
@@ -185,11 +177,7 @@ function buildTwiML(message: string, shouldEndCall: boolean): string {
     language="en-US"
   >
   </Gather>
-  <Say voice="${voice}" language="en-US">
-    <speak>
-      <prosody rate="95%" pitch="+2%">I didn't hear anything. Are you still there?</prosody>
-    </speak>
-  </Say>
+  <Say voice="${voice}" language="en-US"><prosody rate="95%" pitch="+2%">I didn&apos;t hear anything. Are you still there?</prosody></Say>
   <Redirect>/voice/handle</Redirect>
 </Response>`;
 }
