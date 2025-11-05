@@ -288,6 +288,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         brandName = "TestCo"
       } = req.body;
 
+      console.log(`[Simulate] Starting test call to ${phoneNumber}`);
+
       // Create a test lead
       const lead = await storage.createLead({
         businessName,
@@ -315,14 +317,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
+      const webhookUrl = `${publicUrl}/voice/start?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
+      
+      console.log(`[Simulate] Webhook URL: ${webhookUrl}`);
+      console.log(`[Simulate] From: ${fromNumber}, To: ${phoneNumber}`);
+
       await storage.updateCallSession(callSession.id, { state: "DIALING" });
 
       const call = await twilioClient.calls.create({
         to: phoneNumber,
         from: fromNumber,
-        url: `${publicUrl}/voice/start?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`,
+        url: webhookUrl,
         machineDetection: 'Enable',
         method: 'POST',
+        statusCallback: `${publicUrl}/api/call-status`,
+        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+        statusCallbackMethod: 'POST',
       });
 
       await storage.updateCallSession(callSession.id, {
@@ -330,6 +340,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         twilioStatus: call.status,
         state: "DIALING",
       });
+
+      console.log(`[Simulate] Call created - SID: ${call.sid}, Status: ${call.status}`);
 
       res.json({
         message: "Call simulation triggered successfully",
@@ -340,15 +352,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: call.status,
           to: call.to,
           from: call.from,
-        }
+          webhookUrl,
+        },
+        instructions: "Check the logs for [Voice Start] to see if Twilio called the webhook. If you don't see that log, the call failed to connect."
       });
     } catch (error: any) {
       console.error("Simulation error:", error);
       res.status(500).json({ 
         message: error.message || "Failed to simulate call",
-        error: error.code ? `Twilio error ${error.code}` : undefined
+        error: error.code ? `Twilio error ${error.code}` : undefined,
+        details: error.toString()
       });
     }
+  });
+
+  // POST /api/call-status - Twilio status callback
+  app.post("/api/call-status", (req, res) => {
+    const { CallSid, CallStatus, ErrorCode, ErrorMessage } = req.body;
+    console.log(`[Call Status] SID: ${CallSid}, Status: ${CallStatus}${ErrorCode ? `, Error: ${ErrorCode} - ${ErrorMessage}` : ''}`);
+    res.sendStatus(200);
   });
 
   const httpServer = createServer(app);
