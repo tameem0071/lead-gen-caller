@@ -237,14 +237,10 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
   });
 }
 
-router.post('/twiml', (req: Request, res: Response) => {
+const handleTwiML = (req: Request, res: Response) => {
   const businessName = req.query.businessName as string || 'Test Business';
   const productCategory = req.query.productCategory as string || 'Test Services';
   const brandName = req.query.brandName as string || 'TestCo';
-
-  const baseUrl = process.env.REPLIT_DEV_DOMAIN
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : 'https://your-repl-url.replit.dev';
 
   const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
 
@@ -253,15 +249,19 @@ router.post('/twiml', (req: Request, res: Response) => {
   <Connect>
     <ConversationRelay 
       url="${wsUrl}"
-      ttsProvider="ElevenLabs"
-      voice="pNInz6obpgDQGcFmaJgB"
+      ttsProvider="amazon"
+      voice="Polly.Matthew-Neural"
       dtmfDetection="true"
+      welcomeGreeting="Hello! This is a test call."
     />
   </Connect>
 </Response>`;
 
-  console.log(`[TwiML] Connecting to: ${wsUrl}`);
+  console.log(`[TwiML] ${req.method} request - Connecting to: ${wsUrl}`);
   res.type('text/xml').send(twiml);
-});
+};
+
+router.get('/twiml', handleTwiML);
+router.post('/twiml', handleTwiML);
 
 export default router;
