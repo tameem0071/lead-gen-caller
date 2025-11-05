@@ -253,15 +253,17 @@ const handleTwiML = (req: Request, res: Response) => {
 
   const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
 
+  // XML-escape the URL for TwiML (& must be &amp; in XML)
+  const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
+
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
     <ConversationRelay 
-      url="${wsUrl}"
+      url="${xmlSafeUrl}"
       ttsProvider="amazon"
       voice="Polly.Matthew-Neural"
       dtmfDetection="true"
-      welcomeGreeting="Hello! This is a test call."
     />
   </Connect>
 </Response>`;
