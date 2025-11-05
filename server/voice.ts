@@ -265,12 +265,17 @@ const handleTwiML = (req: Request, res: Response) => {
   // XML-escape the URL for TwiML (& must be &amp; in XML)
   const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
 
+  // ElevenLabs voice configuration for ConversationRelay
+  // Format: VOICE_ID-MODEL-SPEED_STABILITY_SIMILARITY
+  // Brian voice: pNInz6obpgDQGcFmaJgB
+  // Parameters: speed=1.0, stability=0.65, similarity=0.9
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
     <ConversationRelay 
       url="${xmlSafeUrl}"
-      voice="Adam - Conversational (English (United States))"
+      ttsProvider="ElevenLabs"
+      voice="pNInz6obpgDQGcFmaJgB-turbo_v2_5-1.0_0.65_0.9"
       dtmfDetection="true"
     />
   </Connect>
@@ -296,8 +301,34 @@ const handleSimpleTwiML = (req: Request, res: Response) => {
   res.type('text/xml').send(twiml);
 };
 
+// Diagnostic test with Amazon Polly (always available)
+const handlePollyTest = (req: Request, res: Response) => {
+  const businessName = req.query.businessName as string || 'Test Business';
+  const productCategory = req.query.productCategory as string || 'Test Services';
+  const brandName = req.query.brandName as string || 'TestCo';
+
+  const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
+  const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
+
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <ConversationRelay 
+      url="${xmlSafeUrl}"
+      voice="Polly.Matthew-Neural"
+      dtmfDetection="true"
+    />
+  </Connect>
+</Response>`;
+
+  console.log(`[Polly Test] ${req.method} request - Testing WebSocket with Polly voice`);
+  res.type('text/xml').send(twiml);
+};
+
 router.get('/twiml', handleTwiML);
 router.post('/twiml', handleTwiML);
+router.get('/twiml-polly-test', handlePollyTest);
+router.post('/twiml-polly-test', handlePollyTest);
 router.get('/twiml-test', handleSimpleTwiML);
 router.post('/twiml-test', handleSimpleTwiML);
 

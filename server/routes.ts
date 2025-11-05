@@ -113,6 +113,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Diagnostic test - Call with Polly voice (always works)
+  app.post("/api/test-polly-call", async (req, res) => {
+    try {
+      const phoneNumber = req.body.phoneNumber;
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number required" });
+      }
+
+      const twilioClient = await getTwilioClient();
+      const fromNumber = await getTwilioFromPhoneNumber();
+      
+      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+
+      const call = await twilioClient.calls.create({
+        to: phoneNumber,
+        from: fromNumber,
+        url: `${publicUrl}/voice/twiml-polly-test?businessName=Test&productCategory=Services&brandName=TestBrand`,
+        method: 'POST',
+      });
+
+      console.log(`[Polly Test] Call initiated to ${phoneNumber}, SID: ${call.sid}`);
+      res.json({ 
+        success: true, 
+        callSid: call.sid,
+        message: "Polly test call initiated - check if phone rings and WebSocket connects" 
+      });
+    } catch (error: any) {
+      console.error("[Polly Test] Error:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to initiate test call" 
+      });
+    }
+  });
+
   // GET /api/leads - Get all leads
   app.get("/api/leads", async (_req, res) => {
     try {
