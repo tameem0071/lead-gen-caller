@@ -5,10 +5,12 @@ import { storage } from "./storage";
 import { insertLeadSchema, insertCallSessionSchema } from "@shared/schema";
 import { getTwilioClient, getTwilioFromPhoneNumber, generateTwiML } from "./twilio";
 import voiceRouter, { handleConversationWebSocket } from "./voice";
+import voiceEnhancedRouter, { handleMediaStreamWebSocket } from "./voice-enhanced";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register conversational voice routes
   app.use("/voice", voiceRouter);
+  app.use("/voice", voiceEnhancedRouter);
   // POST /api/leads - Create a new lead and optionally trigger call
   app.post("/api/leads", async (req, res) => {
     try {
@@ -395,6 +397,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   console.log('[Server] WebSocket server listening on /voice/relay');
+
+  // Set up WebSocket server for Media Streams (enhanced version)
+  const wssMediaStream = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/voice/media-stream',
+    perMessageDeflate: false,
+  });
+
+  wssMediaStream.on('connection', (ws, req) => {
+    console.log('[Media Stream WebSocket] ✅ New connection to /voice/media-stream');
+    console.log('[Media Stream WebSocket] URL:', req.url);
+    handleMediaStreamWebSocket(ws, req);
+  });
+
+  wssMediaStream.on('error', (error) => {
+    console.error('[Media Stream WebSocket Server Error]', error);
+  });
+
+  console.log('[Server] WebSocket server listening on /voice/media-stream (Enhanced)');
 
   return httpServer;
 }
