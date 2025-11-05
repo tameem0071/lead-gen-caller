@@ -76,21 +76,34 @@ TO END CALL: Start with [END_CALL]
 Remember: Professional, calm, clear. Like a knowledgeable consultant, not a salesperson.`;
 
 // Convert μ-law (ulaw) audio to PCM16 for Whisper
+// Canonical ITU-T G.711 μ-law decoding algorithm
 function ulawToPCM16(ulawBuffer: Buffer): Buffer {
   const pcm16Buffer = Buffer.alloc(ulawBuffer.length * 2);
+  const BIAS = 132;
   
   for (let i = 0; i < ulawBuffer.length; i++) {
-    const ulaw = ulawBuffer[i];
-    const sign = ulaw & 0x80;
+    // Step 1: Invert all bits (standard G.711 requirement)
+    let ulaw = (~ulawBuffer[i]) & 0xFF;
+    
+    // Step 2: Extract components (seeemmmm format)
+    const sign = (ulaw & 0x80) !== 0;
     const exponent = (ulaw >> 4) & 0x07;
-    const mantissa = ulaw & 0x0F;
+    let mantissa = ulaw & 0x0F;
     
-    let sample = ((mantissa << 3) + 132) << exponent;
-    if (sign) sample = -sample;
+    // Step 3: Add implicit fifth bit (leading 1)
+    mantissa |= 0x10;
     
-    // Clamp to 16-bit range
-    sample = Math.max(-32768, Math.min(32767, sample));
+    // Step 4: Calculate linear value
+    // Formula: ((mantissa << 1) + 1) << (exponent + 2)
+    let value = ((mantissa << 1) + 1) << (exponent + 2);
     
+    // Step 5: Subtract BIAS (132)
+    value -= BIAS;
+    
+    // Step 6: Apply sign
+    const sample = sign ? -value : value;
+    
+    // Store as 16-bit PCM
     pcm16Buffer.writeInt16LE(sample, i * 2);
   }
   
@@ -125,14 +138,51 @@ function pcm16ToUlaw(pcm16Buffer: Buffer): Buffer {
   return ulawBuffer;
 }
 
-async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
+// Add WAV header to raw PCM16 audio
+function createWAVBuffer(pcm16Buffer: Buffer, sampleRate: number = 8000): Buffer {
+  const numChannels = 1; // Mono
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcm16Buffer.length;
+  const headerSize = 44;
+  
+  const wavBuffer = Buffer.alloc(headerSize + dataSize);
+  
+  // RIFF header
+  wavBuffer.write('RIFF', 0);
+  wavBuffer.writeUInt32LE(36 + dataSize, 4);
+  wavBuffer.write('WAVE', 8);
+  
+  // fmt chunk
+  wavBuffer.write('fmt ', 12);
+  wavBuffer.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+  wavBuffer.writeUInt16LE(1, 20); // AudioFormat (1 for PCM)
+  wavBuffer.writeUInt16LE(numChannels, 22);
+  wavBuffer.writeUInt32LE(sampleRate, 24);
+  wavBuffer.writeUInt32LE(byteRate, 28);
+  wavBuffer.writeUInt16LE(blockAlign, 32);
+  wavBuffer.writeUInt16LE(bitsPerSample, 34);
+  
+  // data chunk
+  wavBuffer.write('data', 36);
+  wavBuffer.writeUInt32LE(dataSize, 40);
+  pcm16Buffer.copy(wavBuffer, 44);
+  
+  return wavBuffer;
+}
+
+async function transcribeAudio(pcm16Audio: Buffer): Promise<string> {
   try {
-    // Create a temporary file-like object for Whisper
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
-    const audioFile = new File([audioBlob], 'audio.wav', { type: 'audio/wav' });
+    // Wrap PCM16 audio in WAV container
+    const wavBuffer = createWAVBuffer(pcm16Audio, 8000);
+    
+    // Create a readable stream with proper file metadata
+    const audioStream = Readable.from(wavBuffer);
+    (audioStream as any).path = 'audio.wav'; // Add filename hint
     
     const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
+      file: audioStream as any,
       model: 'whisper-1',
       language: 'en',
     });
@@ -274,27 +324,29 @@ async function sendAudioToTwilio(ws: WebSocket, streamSid: string, audioBuffer: 
     // Convert audio to μ-law format
     const ulawAudio = await convertMP3ToUlaw(audioBuffer);
     
-    // Twilio expects base64-encoded μ-law audio
-    const base64Audio = ulawAudio.toString('base64');
+    // Send audio in chunks (20ms = 160 bytes of μ-law @ 8kHz)
+    const CHUNK_SIZE = 160; // 20ms of audio at 8kHz
     
-    // Send audio in chunks (20ms = 160 bytes of μ-law)
-    const chunkSize = 160;
-    for (let i = 0; i < base64Audio.length; i += chunkSize * 4 / 3) { // base64 is 4/3 larger
-      const chunk = base64Audio.slice(i, i + chunkSize * 4 / 3);
+    for (let i = 0; i < ulawAudio.length; i += CHUNK_SIZE) {
+      // Extract raw 160-byte chunk
+      const rawChunk = ulawAudio.slice(i, i + CHUNK_SIZE);
+      
+      // Encode this specific chunk to base64
+      const base64Chunk = rawChunk.toString('base64');
       
       ws.send(JSON.stringify({
         event: 'media',
         streamSid,
         media: {
-          payload: chunk,
+          payload: base64Chunk,
         },
       }));
       
-      // Small delay to match real-time playback
+      // Small delay to match real-time playback (20ms per chunk)
       await new Promise(resolve => setTimeout(resolve, 20));
     }
     
-    console.log('[Twilio] Audio sent successfully');
+    console.log('[Twilio] Audio sent successfully:', ulawAudio.length, 'bytes in', Math.ceil(ulawAudio.length / CHUNK_SIZE), 'chunks');
   } catch (error) {
     console.error('[Send Audio Error]', error);
   }
