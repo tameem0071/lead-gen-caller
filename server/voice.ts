@@ -144,7 +144,7 @@ function addSSMLProsody(text: string): string {
 }
 
 function buildTwiML(message: string, shouldEndCall: boolean): string {
-  const voice = 'Polly.Matthew-Generative';
+  const voice = 'Polly.Matthew';
   
   const escapedMessage = message
     .replace(/&/g, '&amp;')
