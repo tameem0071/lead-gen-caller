@@ -1,0 +1,156 @@
+Project idea to build in Replit
+Goal: A lightweight demo system that (1) captures leads via a simple lead-gen bot and (2) runs an AI-assisted outbound caller that uses Twilio to place short, friendly intro calls to those leads. Keep it minimal, production-ready enough to extend.
+Components (minimal)
+
+
+Lead Gen Bot (web)
+
+
+Small chat-style widget/page that asks: business name, contact person (optional), phone number, product category, brand name.
+
+
+Validates phone number and stores a lead.
+
+
+After submit, shows “We’ll call you shortly” and triggers the call workflow.
+
+
+
+
+Caller Backend (API)
+
+
+In-memory (or simple DB) “call session” store.
+
+
+Endpoints:
+
+
+POST /leads → create lead (from the bot). Returns leadId.
+
+
+POST /call/start → body: { leadId, phoneNumber, businessName, productCategory, brandName }. Creates a call session and returns { callId, state }.
+
+
+GET /call/:id/status → returns { callId, state, phoneNumber, transcript, captured }.
+
+
+GET /calls → list recent sessions (for debugging).
+
+
+POST /call/:callId/dial → uses Twilio to place the call for that session, returns Twilio call info.
+
+
+
+
+
+
+Dialer (Twilio integration)
+
+
+Uses Twilio Programmable Voice to call session.phoneNumber from a configured Twilio number.
+
+
+Plays a short TwiML script like:
+
+
+Intro (“Hi, this is <brand> reaching out about <product category>.”)
+
+
+One-line pitch
+
+
+Clear callback/next-step prompt (e.g., “Press 1 for more info, or we’ll text you details.”) — optional in v1.
+
+
+
+
+Logs call SID/status back into the session.
+
+
+
+
+Basic data model
+
+
+Lead: { id, createdAt, businessName, contactName?, phoneNumber, productCategory, brandName, source }
+
+
+CallSession: { callId, leadId, phoneNumber, businessName, productCategory, brandName, state: "INTRO"|"DIALING"|"COMPLETED"|"FAILED", transcript: string[], captured: Record<string, string>, providerMeta?: { sid, status } }
+
+
+Flow
+
+
+User chats with Lead Gen Bot → submits lead → POST /leads.
+
+
+Backend creates lead; either:
+
+
+auto-triggers POST /call/start then POST /call/:callId/dial, or
+
+
+waits for a manual trigger from a simple admin button.
+
+
+
+
+Dialer places call via Twilio and plays short message; logs Twilio SID/status.
+
+
+Frontend Status View (tiny admin page) can poll GET /call/:id/status.
+
+
+Environment variables
+
+
+TWILIO_ACCOUNT_SID
+
+
+TWILIO_AUTH_TOKEN
+
+
+TWILIO_FROM_NUMBER (verified / trial number)
+
+
+(Optional) PORT, NODE_ENV
+
+
+Guardrails & trial-friendly
+
+
+Trial: must call verified numbers only; handle that gracefully with a helpful error message.
+
+
+Rate-limit POST /call/start by lead/phone to avoid duplicates.
+
+
+Validate E.164 phone format.
+
+
+Non-goals (for now)
+
+
+No full conversational IVR; just a brief intro message (press-key logic optional).
+
+
+No complex CRM; in-memory or simple JSON/SQLite is fine.
+
+
+What to build in Replit
+
+
+A small TypeScript/Node server exposing the endpoints above.
+
+
+A simple HTML/JS lead bot (or React mini page) that posts to /leads and shows status.
+
+
+Twilio helper module that builds TwiML and calls the REST API.
+
+
+Minimal admin page to list leads and call sessions and trigger “Dial”.
+
+
+Outcome: a working demo where I can collect a lead with the bot and immediately place an automated intro call to that lead via Twilio, then view the call status in a tiny admin view.
