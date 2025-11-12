@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
+import { createHmac } from 'crypto';
 import { storage } from "./storage";
 import { insertLeadSchema, insertCallSessionSchema } from "@shared/schema";
-import { getTwilioClient, getTwilioFromPhoneNumber, generateTwiML } from "./twilio";
+import { getTwilioClient, getTwilioFromPhoneNumber, getTwilioAuthToken, generateTwiML } from "./twilio";
 import voiceRouter, { handleConversationWebSocket } from "./voice";
 import voiceEnhancedRouter, { handleMediaStreamWebSocket } from "./voice-enhanced";
 
@@ -450,11 +451,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
 
-  // Set up WebSocket server for ConversationRelay
+  // Twilio signature validation for WebSocket handshake
+  async function validateTwilioSignature(req: any): Promise<boolean> {
+    try {
+      const twilioSignature = req.headers['x-twilio-signature'];
+      if (!twilioSignature) {
+        console.log('[WebSocket Auth] ⚠️  No X-Twilio-Signature header');
+        return false;
+      }
+
+      const authToken = await getTwilioAuthToken();
+      if (!authToken) {
+        console.log('[WebSocket Auth] ⚠️  No auth token available');
+        return false;
+      }
+
+      // Reconstruct the URL that Twilio signed
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['host'];
+      const url = `${protocol}://${host}${req.url}`;
+
+      // Compute HMAC-SHA1 signature
+      const hmac = createHmac('sha1', authToken);
+      hmac.update(url);
+      const computedSignature = hmac.digest('base64');
+
+      const isValid = computedSignature === twilioSignature;
+      
+      if (!isValid) {
+        console.log('[WebSocket Auth] ❌ Signature mismatch');
+        console.log('[WebSocket Auth] Expected:', computedSignature);
+        console.log('[WebSocket Auth] Received:', twilioSignature);
+        console.log('[WebSocket Auth] URL:', url);
+      } else {
+        console.log('[WebSocket Auth] ✅ Signature valid');
+      }
+
+      return isValid;
+    } catch (error) {
+      console.error('[WebSocket Auth] Error validating signature:', error);
+      return false;
+    }
+  }
+
+  // Set up WebSocket server for ConversationRelay with signature validation
   const wss = new WebSocketServer({ 
     server: httpServer, 
     path: '/voice/relay',
     perMessageDeflate: false,
+    verifyClient: (info, callback) => {
+      validateTwilioSignature(info.req)
+        .then(isValid => {
+          if (!isValid) {
+            console.log('[WebSocket Auth] ❌ Rejecting connection - invalid signature');
+            callback(false, 401, 'Unauthorized');
+          } else {
+            console.log('[WebSocket Auth] ✅ Accepting connection');
+            callback(true);
+          }
+        })
+        .catch(error => {
+          console.error('[WebSocket Auth] ❌ Error during validation:', error);
+          callback(false, 500, 'Internal Server Error');
+        });
+    }
   });
 
   wss.on('connection', (ws, req) => {

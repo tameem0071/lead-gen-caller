@@ -31,6 +31,7 @@ async function getCredentials() {
     accountSid: connectionSettings.settings.account_sid,
     apiKey: connectionSettings.settings.api_key,
     apiKeySecret: connectionSettings.settings.api_key_secret,
+    authToken: connectionSettings.settings.auth_token,
     phoneNumber: connectionSettings.settings.phone_number
   };
 }
@@ -45,6 +46,11 @@ export async function getTwilioClient() {
 export async function getTwilioFromPhoneNumber() {
   const { phoneNumber } = await getCredentials();
   return phoneNumber;
+}
+
+export async function getTwilioAuthToken() {
+  const { authToken } = await getCredentials();
+  return authToken;
 }
 
 export function generateTwiML(businessName: string, productCategory: string, brandName: string): string {
