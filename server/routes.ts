@@ -469,25 +469,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Reconstruct the URL that Twilio signed
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['host'];
-      const url = `${protocol}://${host}${req.url}`;
+      const baseUrl = `${protocol}://${host}${req.url}`;
 
-      // Compute HMAC-SHA1 signature
-      const hmac = createHmac('sha1', authToken);
-      hmac.update(url);
-      const computedSignature = hmac.digest('base64');
-
-      const isValid = computedSignature === twilioSignature;
-      
-      if (!isValid) {
-        console.log('[WebSocket Auth] ❌ Signature mismatch');
-        console.log('[WebSocket Auth] Expected:', computedSignature);
-        console.log('[WebSocket Auth] Received:', twilioSignature);
-        console.log('[WebSocket Auth] URL:', url);
-      } else {
-        console.log('[WebSocket Auth] ✅ Signature valid');
+      // Try validation with and without trailing slash (WebSocket common pattern)
+      const urlsToTry = [baseUrl];
+      if (!baseUrl.endsWith('/')) {
+        urlsToTry.push(baseUrl + '/');
       }
 
-      return isValid;
+      for (const url of urlsToTry) {
+        // Compute HMAC-SHA1 signature (no POST params for WebSocket)
+        const hmac = createHmac('sha1', authToken);
+        hmac.update(url);
+        const computedSignature = hmac.digest('base64');
+
+        if (computedSignature === twilioSignature) {
+          console.log('[WebSocket Auth] ✅ Signature valid');
+          console.log('[WebSocket Auth] URL:', url);
+          return true;
+        }
+      }
+
+      // Log mismatch details
+      const hmac = createHmac('sha1', authToken);
+      hmac.update(baseUrl);
+      const computedSignature = hmac.digest('base64');
+      
+      console.log('[WebSocket Auth] ❌ Signature mismatch');
+      console.log('[WebSocket Auth] Expected (no slash):', computedSignature);
+      console.log('[WebSocket Auth] Received:', twilioSignature);
+      console.log('[WebSocket Auth] URL:', baseUrl);
+
+      return false;
     } catch (error) {
       console.error('[WebSocket Auth] Error validating signature:', error);
       return false;
