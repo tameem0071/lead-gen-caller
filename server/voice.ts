@@ -341,18 +341,28 @@ const handlePollyTest = (req: Request, res: Response) => {
 const handleMinimalTest = (req: Request, res: Response) => {
   const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay`;
   const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
+  
+  // Use correct ElevenLabs voice with custom parameters
+  const voiceId = 'pNInz6obpgDQGcFmaJgB'; // Brian's voice
+  const model = 'turbo_v2_5';
+  const speed = 1.0;
+  const stability = 0.65;
+  const similarity = 0.9;
+  const voiceParam = `${voiceId}-${model}-${speed}_${stability}_${similarity}`;
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
     <ConversationRelay 
       url="${xmlSafeUrl}"
-      welcomeGreeting="Hello! This is a test call."
+      ttsProvider="ElevenLabs"
+      voice="${voiceParam}"
+      dtmfDetection="true"
     />
   </Connect>
 </Response>`;
 
-  console.log(`[Minimal Test] ${req.method} request - Testing WebSocket with default voice and minimal config`);
+  console.log(`[Minimal Test] ${req.method} request - Testing with ElevenLabs voice: ${voiceParam}`);
   res.type('text/xml').send(twiml);
 };
 
