@@ -466,6 +466,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return false;
       }
 
+      // DEBUG: Show auth token (first 4 + last 4 chars for security)
+      const tokenPreview = `${authToken.substring(0, 4)}...${authToken.substring(authToken.length - 4)}`;
+      console.log('[WebSocket Auth] 🔑 Auth token:', tokenPreview);
+      console.log('[WebSocket Auth] 🔑 Token length:', authToken.length);
+
+      // DEBUG: Show full request details
+      console.log('[WebSocket Auth] 🌐 Full req.url:', req.url);
+      console.log('[WebSocket Auth] 🌐 Protocol:', req.headers['x-forwarded-proto']);
+      console.log('[WebSocket Auth] 🌐 Host:', req.headers['host']);
+      console.log('[WebSocket Auth] 🌐 All headers:', JSON.stringify(req.headers, null, 2));
+
       // Reconstruct the URL that Twilio signed
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['host'];
@@ -477,14 +488,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         urlsToTry.push(baseUrl + '/');
       }
 
+      console.log('[WebSocket Auth] 🔍 Trying URLs:', urlsToTry);
+
       for (const url of urlsToTry) {
         // Compute HMAC-SHA1 signature (no POST params for WebSocket)
         const hmac = createHmac('sha1', authToken);
         hmac.update(url);
         const computedSignature = hmac.digest('base64');
 
+        console.log(`[WebSocket Auth] 🔐 Computed signature for "${url}": ${computedSignature}`);
+
         if (computedSignature === twilioSignature) {
-          console.log('[WebSocket Auth] ✅ Signature valid');
+          console.log('[WebSocket Auth] ✅ Signature valid!');
           console.log('[WebSocket Auth] URL:', url);
           return true;
         }
@@ -496,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const computedSignature = hmac.digest('base64');
       
       console.log('[WebSocket Auth] ❌ Signature mismatch');
-      console.log('[WebSocket Auth] Expected (no slash):', computedSignature);
+      console.log('[WebSocket Auth] Computed:', computedSignature);
       console.log('[WebSocket Auth] Received:', twilioSignature);
       console.log('[WebSocket Auth] URL:', baseUrl);
 
