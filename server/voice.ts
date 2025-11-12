@@ -121,6 +121,7 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
   console.log('[WebSocket] ✅ New ConversationRelay connection');
   console.log('[WebSocket] User-Agent:', req.headers['user-agent']);
   console.log('[WebSocket] Origin:', req.headers['origin']);
+  console.log('[WebSocket] X-Twilio-Signature:', req.headers['x-twilio-signature']);
 
   let callSid: string = '';
   let state: ConversationState | undefined;
@@ -132,11 +133,7 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
   const brandName = urlParams.get('brandName') || 'the company';
 
   console.log('[WebSocket] Params:', { businessName, productCategory, brandName });
-
-  // Send immediate acknowledgment to Twilio
-  ws.on('open', () => {
-    console.log('[WebSocket] Connection opened successfully');
-  });
+  console.log('[WebSocket] ✅ Ready to receive messages from Twilio');
 
   ws.on('message', async (message: any) => {
     try {
