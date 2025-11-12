@@ -122,6 +122,8 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
   console.log('[WebSocket] User-Agent:', req.headers['user-agent']);
   console.log('[WebSocket] Origin:', req.headers['origin']);
   console.log('[WebSocket] X-Twilio-Signature:', req.headers['x-twilio-signature']);
+  console.log('[WebSocket] Protocol:', (ws as any).protocol);
+  console.log('[WebSocket] ReadyState:', ws.readyState);
 
   let callSid: string = '';
   let state: ConversationState | undefined;
@@ -134,6 +136,18 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
 
   console.log('[WebSocket] Params:', { businessName, productCategory, brandName });
   console.log('[WebSocket] ✅ Ready to receive messages from Twilio');
+  
+  // Keep connection alive with ping/pong
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === 1) {
+      ws.ping();
+      console.log('[WebSocket] Sent ping');
+    }
+  }, 30000);
+
+  ws.on('pong', () => {
+    console.log('[WebSocket] Received pong');
+  });
 
   ws.on('message', async (message: any) => {
     try {
@@ -234,6 +248,7 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
 
   ws.on('close', (code, reason) => {
     console.log('[WebSocket] Connection closed - Code:', code, 'Reason:', reason.toString());
+    clearInterval(pingInterval);
     if (callSid) {
       conversations.delete(callSid);
     }
