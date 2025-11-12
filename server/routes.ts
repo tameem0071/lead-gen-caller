@@ -165,14 +165,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
+      const twimlUrl = `${publicUrl}/voice/twiml-minimal`;
+      
+      console.log(`[Minimal Test] 🌐 REPLIT_DEV_DOMAIN: ${process.env.REPLIT_DEV_DOMAIN}`);
+      console.log(`[Minimal Test] 🌐 Public URL: ${publicUrl}`);
+      console.log(`[Minimal Test] 🌐 Full TwiML URL: ${twimlUrl}`);
+      console.log(`[Minimal Test] 🌐 Method: POST`);
+
       const call = await twilioClient.calls.create({
         to: phoneNumber,
         from: fromNumber,
-        url: `${publicUrl}/voice/twiml-minimal`,
+        url: twimlUrl,
         method: 'POST',
       });
 
       console.log(`[Minimal Test] Call initiated to ${phoneNumber}, SID: ${call.sid}`);
+      console.log(`[Minimal Test] ⏰ Twilio should fetch TwiML from: ${twimlUrl}`);
       res.json({ 
         success: true, 
         callSid: call.sid,

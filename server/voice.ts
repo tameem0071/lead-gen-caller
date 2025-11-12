@@ -339,6 +339,14 @@ const handlePollyTest = (req: Request, res: Response) => {
 
 // Ultra-minimal test - default voice, minimal parameters
 const handleMinimalTest = (req: Request, res: Response) => {
+  console.log('='.repeat(80));
+  console.log(`[TwiML Minimal] ✅ ${req.method} REQUEST RECEIVED`);
+  console.log(`[TwiML Minimal] URL: ${req.url}`);
+  console.log(`[TwiML Minimal] Headers:`, JSON.stringify(req.headers, null, 2));
+  console.log(`[TwiML Minimal] Query:`, req.query);
+  console.log(`[TwiML Minimal] Body:`, req.body);
+  console.log('='.repeat(80));
+  
   const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay`;
   const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
   
@@ -362,8 +370,10 @@ const handleMinimalTest = (req: Request, res: Response) => {
   </Connect>
 </Response>`;
 
-  console.log(`[Minimal Test] ${req.method} request - Testing with ElevenLabs voice: ${voiceParam}`);
+  console.log(`[TwiML Minimal] 📤 Sending TwiML response with voice: ${voiceParam}`);
+  console.log(`[TwiML Minimal] TwiML:`, twiml);
   res.type('text/xml').send(twiml);
+  console.log(`[TwiML Minimal] ✅ Response sent successfully`);
 };
 
 router.get('/twiml', handleTwiML);
