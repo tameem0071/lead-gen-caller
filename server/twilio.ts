@@ -49,7 +49,11 @@ export async function getTwilioFromPhoneNumber() {
 }
 
 export async function getTwilioAuthToken() {
-  const { authToken } = await getCredentials();
+  // Use environment variable for auth token (required for WebSocket signature validation)
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    throw new Error('TWILIO_AUTH_TOKEN not found in environment variables');
+  }
   return authToken;
 }
 
