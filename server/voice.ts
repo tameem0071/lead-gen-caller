@@ -328,13 +328,13 @@ const handlePollyTest = (req: Request, res: Response) => {
     <ConversationRelay 
       url="${xmlSafeUrl}"
       ttsProvider="Amazon"
-      voice="Polly.Matthew-Neural"
+      voice="Matthew-Neural"
       dtmfDetection="true"
     />
   </Connect>
 </Response>`;
 
-  console.log(`[Polly Test] ${req.method} request - Testing WebSocket with Amazon Polly voice`);
+  console.log(`[Polly Test] ${req.method} request - Testing WebSocket with Amazon Polly voice (Matthew-Neural)`);
   console.log(`[Polly Test] TwiML:`, twiml);
   res.type('text/xml').send(twiml);
 };
