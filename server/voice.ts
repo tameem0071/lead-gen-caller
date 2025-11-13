@@ -339,43 +339,25 @@ const handlePollyTest = (req: Request, res: Response) => {
   res.type('text/xml').send(twiml);
 };
 
-// Ultra-minimal test - default voice, minimal parameters
+// Ultra-minimal test - ABSOLUTE BARE BONES - default everything
 const handleMinimalTest = (req: Request, res: Response) => {
   console.log('='.repeat(80));
-  console.log(`[TwiML Minimal] ✅ ${req.method} REQUEST RECEIVED`);
-  console.log(`[TwiML Minimal] URL: ${req.url}`);
-  console.log(`[TwiML Minimal] Headers:`, JSON.stringify(req.headers, null, 2));
-  console.log(`[TwiML Minimal] Query:`, req.query);
-  console.log(`[TwiML Minimal] Body:`, req.body);
+  console.log(`[TwiML BARE BONES] ✅ ${req.method} REQUEST RECEIVED`);
+  console.log(`[TwiML BARE BONES] Testing with MINIMAL TwiML - default voice, no extra params`);
   console.log('='.repeat(80));
   
   const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay`;
-  const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
-  
-  // Use correct ElevenLabs voice with custom parameters
-  const voiceId = 'pNInz6obpgDQGcFmaJgB'; // Brian's voice
-  const model = 'turbo_v2_5';
-  const speed = 1.0;
-  const stability = 0.65;
-  const similarity = 0.9;
-  const voiceParam = `${voiceId}-${model}-${speed}_${stability}_${similarity}`;
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <ConversationRelay 
-      url="${xmlSafeUrl}"
-      ttsProvider="ElevenLabs"
-      voice="${voiceParam}"
-      dtmfDetection="true"
-    />
+    <ConversationRelay url="${wsUrl}" />
   </Connect>
 </Response>`;
 
-  console.log(`[TwiML Minimal] 📤 Sending TwiML response with voice: ${voiceParam}`);
-  console.log(`[TwiML Minimal] TwiML:`, twiml);
+  console.log(`[TwiML BARE BONES] TwiML:`, twiml);
   res.type('text/xml').send(twiml);
-  console.log(`[TwiML Minimal] ✅ Response sent successfully`);
+  console.log(`[TwiML BARE BONES] ✅ Response sent`);
 };
 
 router.get('/twiml', handleTwiML);
