@@ -1,0 +1,54 @@
+Hi, my Twilio AI Caller project isn’t working properly. The phone rings but then hangs up instantly, and Twilio shows WebSocket code 1006 (abnormal closure).
+
+My setup uses Twilio ConversationRelay with a <Connect><ConversationRelay><WebSocket> TwiML block.
+
+After analyzing the logs, it seems Replit is terminating or not properly upgrading the WebSocket connection between Twilio and my Replit app.
+
+I need your help to:
+
+Confirm that persistent WebSocket connections (wss://) are supported and remain open for more than 60 seconds on my Replit deployment (https://lead-capture-flow-tameem4.replit.app/ws).
+
+If Replit’s hosting auto-closes idle or non-browser WebSocket connections, please tell me how to disable that timeout or migrate this to a deployment that allows server-to-server WebSocket streaming (Twilio Voice uses long-lived bidirectional audio data).
+
+Ensure that my Replit deployment can handle incoming WebSocket Upgrade requests from external services like Twilio (not just browsers).
+
+The connection flow is correct — Twilio connects, then closes with code 1006 before sending the setup message — so this is almost certainly a network or proxy limitation on Replit’s side.
+
+Can you confirm if Replit supports this type of persistent WSS connection for external AI voice integrations?
+
+If not, can you recommend how to host this same Node.js server on a platform like Render, Railway, or Fly.io with proper WebSocket persistence?
+
+🧠 Why this works
+
+Replit’s free/standard hosting:
+
+uses reverse proxies that often close long-lived WebSockets after ~55 seconds or if no browser handshake headers are present;
+
+Twilio Voice requires a continuous bidirectional WebSocket stream lasting the whole call.
+
+This is why you hear the ring but no voice — Twilio can’t maintain the media stream.
+
+✅ Optional (if you want to fix it yourself)
+
+If you’d rather move it without waiting:
+
+Create a free account on Render.com
+
+Deploy your server folder as a Web Service
+
+Use the Render-generated HTTPS URL as your WebSocket endpoint (it will start with wss://yourapp.onrender.com/ws)
+
+Update your TwiML to:
+
+<Connect>
+  <ConversationRelay>
+    <WebSocket url="wss://yourapp.onrender.com/ws" />
+    <Parameter name="voice" value="Matthew-Neural"/>
+    <Parameter name="ttsProvider" value="Amazon"/>
+  </ConversationRelay>
+</Connect>
+
+
+That fixes 99% of “call hangs instantly” errors.
+
+Would you like me to write the exact deployment prompt for Render or Fly.io so you can just paste it there and migrate easily?
