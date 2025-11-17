@@ -530,11 +530,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // Set up WebSocket server for ConversationRelay (no subprotocol required per Twilio docs)
+  // Set up WebSocket server for ConversationRelay with proper protocol handling
   const wss = new WebSocketServer({ 
     server: httpServer, 
     path: '/voice/relay',
     perMessageDeflate: false,
+    handleProtocols: (protocols, request) => {
+      // Log what protocols Twilio is requesting
+      console.log('[WebSocket Protocol] Requested protocols:', protocols);
+      console.log('[WebSocket Protocol] Request headers:', request.headers);
+      
+      // Accept 'conversationrelay' protocol if offered
+      if (protocols.has('conversationrelay')) {
+        console.log('[WebSocket Protocol] ✅ Accepting "conversationrelay" protocol');
+        return 'conversationrelay';
+      }
+      
+      // Fallback: accept first protocol or none
+      const firstProtocol = protocols.values().next().value;
+      if (firstProtocol) {
+        console.log(`[WebSocket Protocol] ✅ Accepting protocol: "${firstProtocol}"`);
+        return firstProtocol;
+      }
+      
+      console.log('[WebSocket Protocol] ⚠️  No protocol negotiated');
+      return false;
+    },
     verifyClient: (info, callback) => {
       console.log('[WebSocket Auth] ⚠️  SIGNATURE VALIDATION TEMPORARILY DISABLED');
       console.log('[WebSocket Auth] ✅ Accepting connection without validation');

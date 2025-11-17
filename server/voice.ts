@@ -158,20 +158,26 @@ export function handleConversationWebSocket(ws: WebSocket, req: any) {
 
       if (eventType === 'setup') {
         callSid = data.callSid;
+        
+        // Get parameters from TwiML <Parameter> tags (preferred) or URL fallback
+        const customParams = data.customParameters || {};
+        const finalBusinessName = customParams.businessName || businessName;
+        const finalProductCategory = customParams.productCategory || productCategory;
+        const finalBrandName = customParams.brandName || brandName;
 
         state = {
           callSid,
           streamSid: '',
-          businessName,
-          productCategory,
-          brandName,
+          businessName: finalBusinessName,
+          productCategory: finalProductCategory,
+          brandName: finalBrandName,
           messages: [],
           turnCount: 0,
           ws,
         };
         conversations.set(callSid, state);
 
-        const greeting = `Hello, this is Alex calling from ${brandName}. I'm reaching out regarding ${productCategory}. Do you have a moment to talk?`;
+        const greeting = `Hello, this is Alex calling from ${finalBrandName}. I'm reaching out regarding ${finalProductCategory}. Do you have a moment to talk?`;
         
         state.messages.push({
           role: 'assistant',
@@ -319,18 +325,21 @@ const handlePollyTest = (req: Request, res: Response) => {
   const productCategory = req.query.productCategory as string || 'Test Services';
   const brandName = req.query.brandName as string || 'TestCo';
 
-  const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
-  const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
+  // Use clean URL without query parameters - pass data via TwiML Parameters instead
+  const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay`;
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
     <ConversationRelay 
-      url="${xmlSafeUrl}"
+      url="${wsUrl}"
       ttsProvider="Amazon"
       voice="Matthew-Neural"
-      dtmfDetection="true"
-    />
+      dtmfDetection="true">
+      <Parameter name="businessName" value="${businessName.replace(/[<>&'"]/g, '')}" />
+      <Parameter name="productCategory" value="${productCategory.replace(/[<>&'"]/g, '')}" />
+      <Parameter name="brandName" value="${brandName.replace(/[<>&'"]/g, '')}" />
+    </ConversationRelay>
   </Connect>
 </Response>`;
 
