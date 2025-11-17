@@ -85,6 +85,13 @@ Preferred communication style: Simple, everyday language.
   - See `RENDER_DEPLOYMENT_GUIDE.md` for complete deployment instructions
   - `render.yaml` included for one-click deployment
 
+**Security Considerations:**
+- **WebSocket Signature Validation:** Currently disabled for WebSocket connections
+  - Twilio signature validation requires raw request body access
+  - WebSocket upgrade requests don't have traditional request bodies
+  - Consider: IP whitelisting, API key authentication, or Twilio Signed URLs for production
+  - Alternative: Enable signature validation for TwiML HTTP endpoints (currently functional)
+
 ### Data Schema (Drizzle ORM)
 
 **Tables:**
