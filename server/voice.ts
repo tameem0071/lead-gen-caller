@@ -278,7 +278,8 @@ const handleTwiML = (req: Request, res: Response) => {
   const productCategory = req.query.productCategory as string || 'Test Services';
   const brandName = req.query.brandName as string || 'TestCo';
 
-  const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
+  const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
+  const wsUrl = `wss://${hostname}/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
 
   // XML-escape the URL for TwiML (& must be &amp; in XML)
   const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
@@ -326,7 +327,8 @@ const handlePollyTest = (req: Request, res: Response) => {
   const brandName = req.query.brandName as string || 'TestCo';
 
   // Use clean URL without query parameters - pass data via TwiML Parameters instead
-  const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay`;
+  const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
+  const wsUrl = `wss://${hostname}/voice/relay`;
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -355,7 +357,8 @@ const handleMinimalTest = (req: Request, res: Response) => {
   console.log(`[TwiML BARE BONES] Testing with MINIMAL TwiML - default voice, no extra params`);
   console.log('='.repeat(80));
   
-  const wsUrl = `wss://${process.env.REPLIT_DEV_DOMAIN || 'your-repl-url.replit.dev'}/voice/relay`;
+  const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
+  const wsUrl = `wss://${hostname}/voice/relay`;
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

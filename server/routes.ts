@@ -50,9 +50,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const twilioClient = await getTwilioClient();
         const fromNumber = await getTwilioFromPhoneNumber();
         
-        // Get public URL (Replit provides this)
-        const publicUrl = process.env.REPLIT_DEV_DOMAIN 
-          ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        // Get public URL (works on both Render and Replit)
+        const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
+        const publicUrl = hostname 
+          ? `https://${hostname}`
           : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
         // Update to DIALING state
@@ -125,8 +126,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
+      const publicUrl = hostname 
+        ? `https://${hostname}`
         : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
       const call = await twilioClient.calls.create({
@@ -161,13 +163,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
+      const publicUrl = hostname 
+        ? `https://${hostname}`
         : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
       const twimlUrl = `${publicUrl}/voice/twiml-minimal`;
       
-      console.log(`[Minimal Test] 🌐 REPLIT_DEV_DOMAIN: ${process.env.REPLIT_DEV_DOMAIN}`);
+      console.log(`[Minimal Test] 🌐 Hostname: ${hostname}`);
       console.log(`[Minimal Test] 🌐 Public URL: ${publicUrl}`);
       console.log(`[Minimal Test] 🌐 Full TwiML URL: ${twimlUrl}`);
       console.log(`[Minimal Test] 🌐 Method: POST`);
@@ -260,9 +263,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      // Get public URL (Replit provides this)
-      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      // Get public URL (works on both Render and Replit)
+      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
+      const publicUrl = hostname 
+        ? `https://${hostname}`
         : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
       const call = await twilioClient.calls.create({
@@ -397,8 +401,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
+      const publicUrl = hostname 
+        ? `https://${hostname}`
         : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
       const webhookUrl = `${publicUrl}/voice/twiml-enhanced?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;

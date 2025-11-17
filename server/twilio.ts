@@ -3,6 +3,7 @@ import twilio from 'twilio';
 let connectionSettings: any;
 
 async function getCredentials() {
+  // Check if running on Replit with connector system
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -10,29 +11,50 @@ async function getCredentials() {
     ? 'depl ' + process.env.WEB_REPL_RENEWAL 
     : null;
 
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
-  }
+  // Try Replit connector first
+  if (hostname && xReplitToken) {
+    try {
+      connectionSettings = await fetch(
+        'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=twilio',
+        {
+          headers: {
+            'Accept': 'application/json',
+            'X_REPLIT_TOKEN': xReplitToken
+          }
+        }
+      ).then(res => res.json()).then(data => data.items?.[0]);
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=twilio',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
+      if (connectionSettings?.settings) {
+        return {
+          accountSid: connectionSettings.settings.account_sid,
+          apiKey: connectionSettings.settings.api_key,
+          apiKeySecret: connectionSettings.settings.api_key_secret,
+          authToken: connectionSettings.settings.auth_token,
+          phoneNumber: connectionSettings.settings.phone_number
+        };
       }
+    } catch (error) {
+      console.log('Replit connector not available, falling back to environment variables');
     }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.account_sid || !connectionSettings.settings.api_key || !connectionSettings.settings.api_key_secret)) {
-    throw new Error('Twilio not connected');
   }
+
+  // Fallback to environment variables (for Render, Fly.io, Railway, etc.)
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const apiKey = process.env.TWILIO_API_KEY_SID;
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!accountSid || !apiKey || !apiKeySecret) {
+    throw new Error('Twilio credentials not found. Set TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID, and TWILIO_API_KEY_SECRET environment variables.');
+  }
+
   return {
-    accountSid: connectionSettings.settings.account_sid,
-    apiKey: connectionSettings.settings.api_key,
-    apiKeySecret: connectionSettings.settings.api_key_secret,
-    authToken: connectionSettings.settings.auth_token,
-    phoneNumber: connectionSettings.settings.phone_number
+    accountSid,
+    apiKey,
+    apiKeySecret,
+    authToken,
+    phoneNumber
   };
 }
 
