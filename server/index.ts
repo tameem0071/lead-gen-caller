@@ -31,16 +31,6 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// Root endpoint for basic health check
-app.get('/', (_req, res, next) => {
-  // Only respond if not in development (Vite handles / in dev)
-  if (app.get("env") !== "development") {
-    res.status(200).send('Server is running');
-  } else {
-    next();
-  }
-});
-
 // CORS support for testing from Replit console
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
