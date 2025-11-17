@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { WebSocket } from 'ws';
 import OpenAI from 'openai';
+import { getWebSocketUrl } from './utils/hostname';
 
 const router = Router();
 
@@ -278,8 +279,18 @@ const handleTwiML = (req: Request, res: Response) => {
   const productCategory = req.query.productCategory as string || 'Test Services';
   const brandName = req.query.brandName as string || 'TestCo';
 
-  const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
-  const wsUrl = `wss://${hostname}/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
+  // Get WebSocket URL (works on Render, Replit, and local dev)
+  const wsUrl = getWebSocketUrl(`/voice/relay?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`);
+  if (!wsUrl) {
+    const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Server configuration error. The service is not properly configured. Please contact technical support.</Say>
+  <Hangup/>
+</Response>`;
+    console.error('[TwiML] ERROR: Deployment hostname not configured');
+    // Return 200 so Twilio processes the TwiML gracefully
+    return res.type('text/xml').status(200).send(errorTwiml);
+  }
 
   // XML-escape the URL for TwiML (& must be &amp; in XML)
   const xmlSafeUrl = wsUrl.replace(/&/g, '&amp;');
@@ -327,8 +338,17 @@ const handlePollyTest = (req: Request, res: Response) => {
   const brandName = req.query.brandName as string || 'TestCo';
 
   // Use clean URL without query parameters - pass data via TwiML Parameters instead
-  const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
-  const wsUrl = `wss://${hostname}/voice/relay`;
+  const wsUrl = getWebSocketUrl('/voice/relay');
+  if (!wsUrl) {
+    const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Server configuration error. The service is not properly configured. Please contact technical support.</Say>
+  <Hangup/>
+</Response>`;
+    console.error('[Polly Test] ERROR: Deployment hostname not configured');
+    // Return 200 so Twilio processes the TwiML gracefully
+    return res.type('text/xml').status(200).send(errorTwiml);
+  }
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -357,8 +377,17 @@ const handleMinimalTest = (req: Request, res: Response) => {
   console.log(`[TwiML BARE BONES] Testing with MINIMAL TwiML - default voice, no extra params`);
   console.log('='.repeat(80));
   
-  const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
-  const wsUrl = `wss://${hostname}/voice/relay`;
+  const wsUrl = getWebSocketUrl('/voice/relay');
+  if (!wsUrl) {
+    const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Server configuration error. The service is not properly configured. Please contact technical support.</Say>
+  <Hangup/>
+</Response>`;
+    console.error('[Minimal Test] ERROR: Deployment hostname not configured');
+    // Return 200 so Twilio processes the TwiML gracefully
+    return res.type('text/xml').status(200).send(errorTwiml);
+  }
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

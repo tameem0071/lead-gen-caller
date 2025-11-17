@@ -75,10 +75,15 @@ Preferred communication style: Simple, everyday language.
 - Health check endpoint at `/health` returns status, timestamp, and uptime
 - Comprehensive error handling in async initialization with process exit on failure
 - Detailed startup logging for diagnosing deployment issues
-- **Recommended Deployment Type:** Reserved VM (persistent WebSocket connections for Twilio)
-  - Autoscale incurs continuous billing for open WebSocket connections
-  - Reserved VM provides dedicated resources and predictable costs
-  - Ideal for long-running Twilio Media Streams connections
+- **Platform Support:** Code works on both Replit and external hosting (Render, Fly.io, Railway)
+  - Environment detection: Uses `RENDER_EXTERNAL_HOSTNAME` or `REPLIT_DEV_DOMAIN`
+  - Twilio credential fallback: Replit Connectors → Environment variables
+- **Production Deployment Recommendation:** Render.com or similar WebSocket-friendly platform
+  - **Known Issue:** Replit's infrastructure closes external server-to-server WebSocket connections
+  - Twilio ConversationRelay requires persistent WebSockets for entire call duration (minutes)
+  - Render.com provides proper WebSocket support and free tier
+  - See `RENDER_DEPLOYMENT_GUIDE.md` for complete deployment instructions
+  - `render.yaml` included for one-click deployment
 
 ### Data Schema (Drizzle ORM)
 

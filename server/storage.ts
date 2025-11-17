@@ -95,7 +95,8 @@ export class MemStorage implements IStorage {
     return Array.from(this.callSessions.values()).find(
       (session) =>
         session.phoneNumber === phoneNumber &&
-        session.createdAt >= cutoffTime
+        session.createdAt >= cutoffTime &&
+        session.state !== "FAILED" // Ignore failed sessions so config errors don't lock out retries
     );
   }
 }

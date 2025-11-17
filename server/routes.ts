@@ -7,6 +7,7 @@ import { insertLeadSchema, insertCallSessionSchema } from "@shared/schema";
 import { getTwilioClient, getTwilioFromPhoneNumber, getTwilioAuthToken, generateTwiML } from "./twilio";
 import voiceRouter, { handleConversationWebSocket } from "./voice";
 import voiceEnhancedRouter, { handleMediaStreamWebSocket } from "./voice-enhanced";
+import { getPublicUrl } from "./utils/hostname";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register conversational voice routes
@@ -36,7 +37,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Create call session
+        // Create call session early for observability
         const callSession = await storage.createCallSession({
           leadId: lead.id,
           phoneNumber: lead.phoneNumber,
@@ -46,15 +47,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           state: "INTRO",
         });
 
+        // Validate deployment URL (mark session as FAILED if missing for observability)
+        const publicUrl = getPublicUrl();
+        if (!publicUrl) {
+          const errorMsg = "Deployment URL not configured - set RENDER_EXTERNAL_URL, RENDER_EXTERNAL_HOSTNAME, or PUBLIC_BASE_URL";
+          console.error(`[Lead Creation] ERROR: ${errorMsg}`);
+          console.error(`[Lead Creation] Lead ID: ${lead.id}, Call Session ID: ${callSession.id}`);
+          await storage.updateCallSession(callSession.id, { state: "FAILED" });
+          callStatus = "failed";
+          callError = "Server configuration error - deployment URL not configured";
+          return res.json({ 
+            ...lead, 
+            callStatus,
+            callError 
+          });
+        }
+
         // Immediately dial using conversational voice
         const twilioClient = await getTwilioClient();
         const fromNumber = await getTwilioFromPhoneNumber();
-        
-        // Get public URL (works on both Render and Replit)
-        const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
-        const publicUrl = hostname 
-          ? `https://${hostname}`
-          : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
 
         // Update to DIALING state
         await storage.updateCallSession(callSession.id, { state: "DIALING" });
@@ -126,10 +137,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
-      const publicUrl = hostname 
-        ? `https://${hostname}`
-        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+      const publicUrl = getPublicUrl();
+      if (!publicUrl) {
+        return res.status(500).json({ message: "Server configuration error: Deployment URL not configured" });
+      }
 
       const call = await twilioClient.calls.create({
         to: phoneNumber,
@@ -163,14 +174,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
-      const publicUrl = hostname 
-        ? `https://${hostname}`
-        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+      const publicUrl = getPublicUrl();
+      if (!publicUrl) {
+        return res.status(500).json({ message: "Server configuration error: Deployment URL not configured" });
+      }
 
       const twimlUrl = `${publicUrl}/voice/twiml-minimal`;
       
-      console.log(`[Minimal Test] 🌐 Hostname: ${hostname}`);
+      console.log(`[Minimal Test] 🌐 Public URL: ${publicUrl}`);
       console.log(`[Minimal Test] 🌐 Public URL: ${publicUrl}`);
       console.log(`[Minimal Test] 🌐 Full TwiML URL: ${twimlUrl}`);
       console.log(`[Minimal Test] 🌐 Method: POST`);
@@ -263,11 +274,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      // Get public URL (works on both Render and Replit)
-      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
-      const publicUrl = hostname 
-        ? `https://${hostname}`
-        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+      // Get public URL (works on Render, Replit, and local dev)
+      const publicUrl = getPublicUrl();
+      if (!publicUrl) {
+        return res.status(500).json({ message: "Server configuration error: Deployment URL not configured" });
+      }
 
       const call = await twilioClient.calls.create({
         to: session.phoneNumber,
@@ -401,10 +412,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twilioClient = await getTwilioClient();
       const fromNumber = await getTwilioFromPhoneNumber();
       
-      const hostname = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.REPLIT_DEV_DOMAIN;
-      const publicUrl = hostname 
-        ? `https://${hostname}`
-        : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+      const publicUrl = getPublicUrl();
+      if (!publicUrl) {
+        return res.status(500).json({ message: "Server configuration error: Deployment URL not configured" });
+      }
 
       const webhookUrl = `${publicUrl}/voice/twiml-enhanced?businessName=${encodeURIComponent(businessName)}&productCategory=${encodeURIComponent(productCategory)}&brandName=${encodeURIComponent(brandName)}`;
       
